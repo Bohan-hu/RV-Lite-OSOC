@@ -2,7 +2,6 @@ package common
 
 import chisel3._
 import chisel3.util._
-import common.util
 
 object Instructions {
   // Loads
@@ -106,7 +105,7 @@ object Instructions {
 }
 
 abstract class Instruction extends Bundle {
-  // Should implement the logic of immediate generation
+  // Should implement the logic of immediate generation logic
   def imm_gen: UInt
 
   def imm_ext = util.signExt64(imm_gen)
@@ -176,14 +175,35 @@ class JTypeInstruction extends Instruction {
   def imm_gen = Cat(imm_20, imm_19_12, imm_11, imm_10_1, 0.U(1.W))
 }
 
+class CSRRInstruction extends Instruction {
+  val csr = UInt(12.W)
+  val rs1 = UInt(5.W)
+  val funct3 = UInt(3.W)
+  val rd = UInt(5.W)
+  val opcode = UInt(7.W)
+
+  def imm_gen = 0.U
+}
+
+class CSRIInstruction extends Instruction {
+  val csr = UInt(12.W)
+  val uimm = UInt(5.W)
+  val funct3 = UInt(3.W)
+  val rd = UInt(5.W)
+  val opcode = UInt(7.W)
+
+  def imm_gen = 0.U
+
+  override def imm_ext = WireInit(UInt(64.W), uimm)
+}
 
 class test extends Module {
   val io = IO(new Bundle() {
     val instr = Input(UInt(32.W))
-    val detached = Output(new BTypeInstruction)
+    val detached = Output(new CSRIInstruction)
     val imm = Output(UInt(64.W))
   })
-  io.detached := io.instr.asTypeOf(new BTypeInstruction)
+  io.detached := io.instr.asTypeOf(new CSRIInstruction)
   io.imm := io.detached.imm_ext
 }
 
