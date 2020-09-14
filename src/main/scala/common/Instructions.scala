@@ -105,7 +105,14 @@ object Instructions {
 
 }
 
-class RTypeInstruction extends Bundle {
+abstract class Instruction extends Bundle {
+  // Should implement the logic of immediate generation
+  def imm_gen: UInt
+
+  def imm_ext = util.signExt64(imm_gen)
+}
+
+class RTypeInstruction extends Instruction {
   val funct7 = UInt(7.W)
   val rs2 = UInt(5.W)
   val rs1 = UInt(5.W)
@@ -113,20 +120,20 @@ class RTypeInstruction extends Bundle {
   val rd = UInt(5.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(0.U)
+  def imm_gen = 0.U
 }
 
-class ITypeInstruction extends Bundle {
+class ITypeInstruction extends Instruction {
   val imm = UInt(12.W)
   val rs1 = UInt(5.W)
   val funct3 = UInt(3.W)
   val rd = UInt(5.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(imm)
+  def imm_gen = imm
 }
 
-class STypeInstruction extends Bundle {
+class STypeInstruction extends Instruction {
   val imm_hi = UInt(7.W)
   val rs2 = UInt(5.W)
   val rs1 = UInt(5.W)
@@ -134,10 +141,10 @@ class STypeInstruction extends Bundle {
   val imm_lo = UInt(5.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(Cat(imm_hi, imm_lo))
+  def imm_gen = Cat(imm_hi, imm_lo)
 }
 
-class BTypeInstruction extends Bundle {
+class BTypeInstruction extends Instruction {
   val imm_12 = UInt(1.W)
   val imm_10_5 = UInt(6.W)
   val rs2 = UInt(5.W)
@@ -147,18 +154,18 @@ class BTypeInstruction extends Bundle {
   val imm_11 = UInt(1.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(Cat(imm_12, imm_11, imm_10_5, imm_4_1, 0.U(1.W)))
+  def imm_gen = Cat(imm_12, imm_11, imm_10_5, imm_4_1, 0.U(1.W))
 }
 
-class UTypeInstruction extends Bundle {
+class UTypeInstruction extends Instruction {
   val imm = UInt(20.W)
   val rd = UInt(5.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(Cat(imm, 0.U(12.W)))
+  def imm_gen = Cat(imm, 0.U(12.W))
 }
 
-class JTypeInstruction extends Bundle {
+class JTypeInstruction extends Instruction {
   val imm_20 = UInt(1.W)
   val imm_10_1 = UInt(10.W)
   val imm_11 = UInt(1.W)
@@ -166,18 +173,18 @@ class JTypeInstruction extends Bundle {
   val rd = UInt(5.W)
   val opcode = UInt(7.W)
 
-  def imm_gen = util.signExt64(Cat(imm_20, imm_19_12, imm_11, imm_10_1, 0.U(1.W)))
+  def imm_gen = Cat(imm_20, imm_19_12, imm_11, imm_10_1, 0.U(1.W))
 }
 
 
 class test extends Module {
   val io = IO(new Bundle() {
     val instr = Input(UInt(32.W))
-    val detached = Output(new JTypeInstruction)
+    val detached = Output(new BTypeInstruction)
     val imm = Output(UInt(64.W))
   })
-  io.detached := io.instr.asTypeOf(new JTypeInstruction)
-  io.imm := io.detached.imm_gen
+  io.detached := io.instr.asTypeOf(new BTypeInstruction)
+  io.imm := io.detached.imm_ext
 }
 
 object test extends App {
