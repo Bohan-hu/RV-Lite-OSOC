@@ -1,8 +1,6 @@
 package common {
 
   import chisel3._
-  import chisel3.util._
-  import scala.math._
 
   // TODO: Use enum to replace the constants
   // TODO: Use zip to replace the xx :: xx :: xx style assignment (Think of a list of signal)
@@ -63,35 +61,33 @@ package common {
     val ALU_X = 0.asUInt(4.W)
 
     // Writeback Select Signal
+    val WB_X = 0.asUInt(2.W)
     val WB_ALU = 0.asUInt(2.W)
     val WB_MEM = 1.asUInt(2.W)
     val WB_PC4 = 2.asUInt(2.W)
     val WB_CSR = 3.asUInt(2.W)
-    val WB_X = 0.asUInt(2.W)
-
-    // Memory Write Signal
-    val MWR_0 = false.B
-    val MWR_1 = true.B
-    val MWR_X = false.B
-
-    // Memory Enable Signal
-    val MEN_0 = false.B
-    val MEN_1 = true.B
-    val MEN_X = false.B
 
     // Mem Op
-    val MEM_NOP = 0.U
-    val MEM_READ = 1.U
-    val MEM_WRITE = 2.U
+    val MEM_NOP = 0.asUInt(2.W)
+    val MEM_READ = 1.asUInt(2.W)
+    val MEM_WRITE = 2.asUInt(2.W)
 
-    // Memory Mask Type Signal
-    val MSK_B = 0.asUInt(3.W)
-    val MSK_BU = 1.asUInt(3.W)
-    val MSK_H = 2.asUInt(3.W)
-    val MSK_HU = 3.asUInt(3.W)
-    val MSK_W = 4.asUInt(3.W)
-    val MSK_X = 4.asUInt(3.W)
+    // Mem Size and sign
+    val SZ_X = 0.asUInt(3.W)
+    val SZ_W = 0.asUInt(3.W)
+    val SZ_B = 1.asUInt(3.W)
+    val SZ_H = 2.asUInt(3.W)
+    val SZ_HU = 3.asUInt(3.W)
+    val SZ_BU = 4.asUInt(3.W)
+    val SZ_D = 5.asUInt(3.W)
+    val SZ_WU = 6.asUInt(3.W)
 
+    val CSR_X = 0.asUInt(3.W)
+    val CSR_W = 1.asUInt(3.W)
+    val CSR_S = 2.asUInt(3.W)
+    val CSR_C = 3.asUInt(3.W)
+    val CSR_I = 4.asUInt(3.W)
+    val CSR_R = 5.asUInt(3.W)
   }
 
 }
