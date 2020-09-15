@@ -1,11 +1,12 @@
 package core
 
 import chisel3._
+import common.util.signExt64
 import chisel3.util._
 
 trait ALUConsts {
   val alu_ADD :: alu_SUB :: alu_AND :: alu_OR :: alu_XOR :: alu_SLT :: alu_SLL :: alu_SLTU :: alu_SRL :: alu_SRA :: alu_A :: alu_B :: Nil = Enum(12)
-  val op_Arith :: op_Compare :: op_Shift :: op_Logic :: Nil = Enum(4)
+  val op_Arith :: op_Compare :: op_Shift :: op_Logic :: op_Copy :: Nil = Enum(5)
 }
 
 class ALUIO(srcWidth: Int) extends Bundle with ConfigParams {
@@ -38,21 +39,26 @@ class ALU(srcWidth: Int) extends Module with ALUConsts with ConfigParams {
     alu_XOR -> (io.srcA ^ io.srcB)
   )
   val logic = MuxLookup(io.aluOP, io.srcB, logic_mux)
-  // SHIFT(TODO)
-  val shamt = io.srcB(5, 0).asUInt()
-  val shift = 0.U
-
+  val shamt = if(srcWidth == 64) io.srcB(5, 0).asUInt() else io.srcB(4,0).asUInt()
+  val shift_mux = Array(
+    alu_SLL -> (io.srcA << shamt),
+    alu_SRL -> (io.srcA >> shamt),
+    alu_SRA -> (( Cat(io.srcA(srcWidth-1), io.srcA).asSInt() >> shamt )(srcWidth-1,0)).asUInt()
+  )
+  val shift = MuxLookup(io.aluOP, io.srcB, shift_mux)
+  val copy = Mux(io.aluOP === alu_A, io.srcA, io.srcB)
   val out_mux = Array(
     op_Arith -> sum,
     op_Compare -> cmp,
     op_Logic -> logic,
-    op_Shift -> shift
+    op_Shift -> shift,
+    op_Copy -> copy
   )
   io.out := MuxLookup(io.aluType, io.srcB, out_mux)
 }
 
 class ALU_top extends Module with ALUConsts with ConfigParams {
-  val io = IO(new ALUIO_top(XLEN))
+  val io = IO(new ALUIO_top(64))
   val alu32 = Module(new ALU(32))
   val alu64 = Module(new ALU(64))
 
@@ -66,12 +72,8 @@ class ALU_top extends Module with ALUConsts with ConfigParams {
   alu64.io.aluOP := io.aluOP
   alu64.io.aluType := io.aluType
 
-  // Sign Extension
-  val alu32_out = Wire(SInt(64.W))
-  alu32_out := alu32.io.out.asSInt()
-
   // Output selection
-  io.out := Mux(io.isWordOp, alu32_out.asUInt(), alu64.io.out)
+  io.out := Mux(io.isWordOp, signExt64(alu32.io.out), alu64.io.out)
 
 }
 
