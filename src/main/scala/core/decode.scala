@@ -67,7 +67,7 @@ class Decode extends Module {
   io.op2 := op2
 
   // TODO: Use a muxlookup and the constant definition and the array table to define the source operand
-  val dummy = List(N, BR_N  , OP1_RS1, OP2_RS2 ,  N   ,  N   , ALU_X    , WB_X ,  N   ,  N   , MEM_READ  , SZ_W  , CSR_X, N);
+  val dummy =     List(N, BR_N  , OP1_RS1, OP2_RS2 ,  N   ,  N   , ALU_X    , WB_X ,  N   ,  N   , MEM_READ  , SZ_W  , CSR_X, N);
   val decodeops =
       Array(      /* val  |  BR  |  op1  |   op2     |  R1  |  R2  |    ALU     |  wb    | rf   | is   |   mem     | mask  | csr | fence.i */
                   /* inst | type |   sel |    sel    |  ren |  ren |     op     |  sel   | wen  |  mem |    wr     | type  | cmd |         */
