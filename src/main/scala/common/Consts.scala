@@ -60,6 +60,14 @@ package common {
     val ALU_COPY_2 = 11.asUInt(4.W)
     val ALU_X = 0.asUInt(4.W)
 
+    // ALU Type
+    val OP_ARITH = 0.asUInt(3.W)
+    val OP_COMPARE = 1.asUInt(3.W)
+    val OP_LOGIC = 2.asUInt(3.W)
+    val OP_SHIFT = 3.asUInt(3.W)
+    val OP_COPY = 4.asUInt(3.W)
+    val OP_BR = 5.asUInt(3.W)
+
     // Writeback Select Signal
     val WB_X = 0.asUInt(2.W)
     val WB_ALU = 0.asUInt(2.W)
