@@ -5,18 +5,23 @@ import common.util.signExt64
 import chisel3.util._
 import common.OpConstants._
 
-class ALUIO(srcWidth: Int) extends Bundle with ConfigParams {
+class BranchCtrlIO extends Bundle {
+  val branchTaken = Bool()
+  val branchTarget = UInt(64.W)
+}
+
+class ALUIO(srcWidth: Int) extends Bundle  {
   val srcA = Input(UInt(srcWidth.W))
   val srcB = Input(UInt(srcWidth.W))
   val aluOP = Input(UInt(4.W))
   val out = Output(UInt(srcWidth.W))
 }
 
-class ALUIO_top(srcWidth: Int = 64) extends ALUIO(srcWidth) with ConfigParams {
+class ALUIO_top(srcWidth: Int = 64) extends ALUIO(srcWidth)  {
   val isWordOp = Input(Bool())
 }
 
-class ALU(srcWidth: Int) extends Module with ConfigParams {
+class ALU(srcWidth: Int) extends Module  {
   val io = IO(new ALUIO(srcWidth))
   val shamt = if (srcWidth == 64) io.srcB(5, 0).asUInt() else io.srcB(4, 0).asUInt()
   val pc_4 = io.srcA + 4.U
@@ -38,7 +43,7 @@ class ALU(srcWidth: Int) extends Module with ConfigParams {
 
 }
 
-class ALU_top extends Module with ConfigParams {
+class ALU_top extends Module  {
   val io = IO(new ALUIO_top(64))
   val alu32 = Module(new ALU(32))
   val alu64 = Module(new ALU(64))

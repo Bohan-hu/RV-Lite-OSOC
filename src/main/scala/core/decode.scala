@@ -28,11 +28,10 @@ class DecodeSignal extends Bundle {
 
 class Decode extends Module {
   val io = IO(new Bundle() {
-    val PC = Input(UInt(64.W))
+    val pc = Input(UInt(64.W))
     val inst = Input(UInt(32.W))
+    val instValid = Input(Bool())
     val regfileIO = Flipped(new RegRead)
-    val op1Sel = Input(UInt(2.W))
-    val op2Sel = Input(UInt(3.W))
     val op2 = Output(UInt())
     val op1 = Output(UInt())
     val outops = Output(UInt())
@@ -40,8 +39,8 @@ class Decode extends Module {
 
   def extractImm[T <: Instruction](inst: T): UInt = io.inst.asTypeOf(inst).imm_ext
 
-  val op1Sel = io.op1Sel
-  val op2Sel = io.op2Sel
+  val op1Sel = WireInit(0.U)
+  val op2Sel = WireInit(0.U)
   // Regfile connection
   io.regfileIO.raddr1 := io.inst.asTypeOf(new RTypeInstruction).rs1
   io.regfileIO.raddr2 := io.inst.asTypeOf(new RTypeInstruction).rs2
@@ -51,7 +50,7 @@ class Decode extends Module {
   val op1 = MuxLookup(op1Sel, RS1,
     Array(
       OP1_RS1 -> RS1,
-      OP1_PC -> io.PC
+      OP1_PC -> io.pc
     ))
   val op2 = MuxLookup(op2Sel, RS2,
     Array(
@@ -131,6 +130,6 @@ class Decode extends Module {
   io.outops := decode_ops.reduce( Cat(_,_) )
 }
 
-object decode extends App {
+object Decode extends App {
   chisel3.Driver.execute(args, () => new Decode)
 }

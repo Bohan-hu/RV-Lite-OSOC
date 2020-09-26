@@ -15,7 +15,7 @@ class RegWrite extends Bundle {
   val wdata = Input(UInt(64.W))
 }
 
-class RegFileIO extends Bundle with ConfigParams {
+class RegFileIO extends Bundle {
   val rdPort = new RegRead
   val wrPort = new RegWrite
 }
