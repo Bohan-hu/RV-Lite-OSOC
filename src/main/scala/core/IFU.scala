@@ -11,6 +11,8 @@ class IFUIO extends Bundle {
 //  val branchInfo = Flipped(new(BranchCtrlIO))
 //  val excInfo = Flipped(new (exceptionRedir))
   val stallReq = Output(Bool())
+  val branchRedir = Input(new BranchRedir)
+  val exceptionRedir = Input(new ExceptionRedir)
 }
 class IFU extends Module {
   val io = IO(new IFUIO)
@@ -18,7 +20,7 @@ class IFU extends Module {
   io.inst_pc := pc
   io.inst_req := true.B
   val npc = Wire(UInt(64.W))
-  when(io.rvalid){
+  when(io.rvalid) {  // todo: add the blocked condition
     pc := npc
   }
   npc := pc + 4.U   // todo

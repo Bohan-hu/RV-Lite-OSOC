@@ -21,4 +21,8 @@ class DiffTestIO extends Bundle {
   val mcause = Output(UInt(64.W))
   val scause = Output(UInt(64.W))
 }
+class LogCtrlIO extends Bundle {
+  val log_begin, log_end = Input(UInt(64.W))
+  val log_level = Input(UInt(64.W)) // a cpp uint
+}
 

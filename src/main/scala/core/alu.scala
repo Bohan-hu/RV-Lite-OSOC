@@ -5,12 +5,8 @@ import common.util.signExt64
 import chisel3.util._
 import common.OpConstants._
 
-class BranchCtrlIO extends Bundle {
-  val branchTaken = Bool()
-  val branchTarget = UInt(64.W)
-}
 
-class ALUIO(srcWidth: Int) extends Bundle  {
+class ALUIO(srcWidth: Int) extends Bundle {
   val srcA = Input(UInt(srcWidth.W))
   val srcB = Input(UInt(srcWidth.W))
   val aluOP = Input(UInt(4.W))

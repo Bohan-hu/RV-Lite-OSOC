@@ -35,7 +35,6 @@ class top extends Module {
   regfile.io.wrPort <> dummy_rfwr
 
   io.pc := ifu.io.inst_pc
-  io.decodeOps := decoder.io.outops
 }
 
 object top extends App {

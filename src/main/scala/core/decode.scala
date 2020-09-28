@@ -9,20 +9,24 @@ import chisel3.util._
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-class DecodeSignal extends Bundle {
+class Decode2Exe extends Bundle {
   val instValid = Bool()
-  val BrType = UInt()
-  val Op1Sel = UInt()
-  val Op2Sel = UInt()
+  val BrType = UInt(4.W)
   val R1ren = Bool()
   val R2ren = Bool()
-  val ALUOp = UInt()
-  val WBSel = UInt()
+  val Raddr1 = UInt(5.W)
+  val Raddr2 = UInt(5.W)
+  val RdNum = UInt(5.W)
+  val Op1 = UInt(64.W)
+  val Op2 = UInt(64.W)
+  val R2val = UInt(64.W)  // For L/S
+  val ALUOp = UInt(4.W)
+  val WBSel = UInt(2.W)
   val RFWen = Bool()
   val isMemOp = Bool()
-  val MemOp = UInt()
-  val MemType = UInt()
-  val CSRCmd = UInt()
+  val MemOp = UInt(2.W)
+  val MemType = UInt(3.W)
+  val CSRCmd = UInt(3.W)
   val isFence = Bool()
 }
 
@@ -32,44 +36,15 @@ class Decode extends Module {
     val inst = Input(UInt(32.W))
     val instValid = Input(Bool())
     val regfileIO = Flipped(new RegRead)
-    val op2 = Output(UInt())
-    val op1 = Output(UInt())
-    val outops = Output(UInt())
+    val decode2Exe = Output(new Decode2Exe)
   })
 
   def extractImm[T <: Instruction](inst: T): UInt = io.inst.asTypeOf(inst).imm_ext
 
-  val op1Sel = WireInit(0.U)
-  val op2Sel = WireInit(0.U)
-  // Regfile connection
-  io.regfileIO.raddr1 := io.inst.asTypeOf(new RTypeInstruction).rs1
-  io.regfileIO.raddr2 := io.inst.asTypeOf(new RTypeInstruction).rs2
-  val RS1 = io.regfileIO.rdata1
-  val RS2 = io.regfileIO.rdata2
-  // Get Operands
-  val op1 = MuxLookup(op1Sel, RS1,
-    Array(
-      OP1_RS1 -> RS1,
-      OP1_PC -> io.pc
-    ))
-  val op2 = MuxLookup(op2Sel, RS2,
-    Array(
-      OP2_RS2 -> RS1,
-      IMM_ITYPE -> extractImm(new ITypeInstruction),
-      IMM_STYPE -> extractImm(new STypeInstruction),
-      IMM_UTYPE -> extractImm(new UTypeInstruction),
-      IMM_JTYPE -> extractImm(new JTypeInstruction),
-      IMM_BTYPE -> extractImm(new BTypeInstruction),
-      IMM_ZEXT -> extractImm(new CSRIInstruction)
-    ))
-  io.op1 := op1
-  io.op2 := op2
-
-  // TODO: Use a muxlookup and the constant definition and the array table to define the source operand
   val dummy =     List(N, BR_N  , OP1_RS1, OP2_RS2 ,  N   ,  N   , ALU_X    , WB_X ,  N   ,  N   , MEM_READ  , SZ_W  , CSR_X, N);
   val decodeops =
       Array(      /* val  |  BR  |  op1  |   op2     |  R1  |  R2  |    ALU     |  wb    | rf   | is   |   mem     | mask  | csr | fence.i */
-                  /* inst | type |   sel |    sel    |  ren |  ren |     op     |  sel   | wen  |  mem |    wr     | type  | cmd |         */
+                  /* inst | type |   sel |    sel    |  ren |  ren |     op     |  sel   | wen  |  mem |    op     | type  | cmd |         */
         LW     -> List(Y, BR_N  , OP1_RS1, IMM_ITYPE ,  Y   ,  N   , ALU_ADD    , WB_MEM ,  Y   ,  Y   , MEM_READ  , SZ_W  , CSR_X, N),
         LB     -> List(Y, BR_N  , OP1_RS1, IMM_ITYPE ,  Y   ,  N   , ALU_ADD    , WB_MEM ,  Y   ,  Y   , MEM_READ  , SZ_B  , CSR_X, N),
         LBU    -> List(Y, BR_N  , OP1_RS1, IMM_ITYPE ,  Y   ,  N   , ALU_ADD    , WB_MEM ,  Y   ,  Y   , MEM_READ  , SZ_BU , CSR_X, N),
@@ -127,7 +102,49 @@ class Decode extends Module {
         // we are already sequentially consistent, so no need to honor the fence instruction
     )
   val decode_ops = ListLookup(io.inst, dummy, decodeops)
-  io.outops := decode_ops.reduce( Cat(_,_) )
+  val (inst_valid: Bool) :: br_Type :: op1Sel :: op2Sel :: (rs1Ren: Bool) :: (rs2Ren: Bool) :: aluOp :: wbSel :: (wbEn: Bool) :: (memEn: Bool) :: memOp :: memMask :: csrOp :: (isFence : Bool) :: Nil = decode_ops
+  // Decode 2 Exe
+  val Rd = io.inst.asTypeOf(new RTypeInstruction).rd
+  // Regfile connection
+  io.regfileIO.raddr1 := io.inst.asTypeOf(new RTypeInstruction).rs1
+  io.regfileIO.raddr2 := io.inst.asTypeOf(new RTypeInstruction).rs2
+  val RS1 = io.regfileIO.rdata1
+  val RS2 = io.regfileIO.rdata2
+  // Get Operands
+  val op1 = MuxLookup(op1Sel, RS1,
+    Array(
+      OP1_RS1 -> RS1,
+      OP1_PC -> io.pc
+    ))
+  val op2 = MuxLookup(op2Sel, RS2,
+    Array(
+      OP2_RS2 -> RS1,
+      IMM_ITYPE -> extractImm(new ITypeInstruction),
+      IMM_STYPE -> extractImm(new STypeInstruction),
+      IMM_UTYPE -> extractImm(new UTypeInstruction),
+      IMM_JTYPE -> extractImm(new JTypeInstruction),
+      IMM_BTYPE -> extractImm(new BTypeInstruction),
+      IMM_ZEXT -> extractImm(new CSRIInstruction)
+    ))
+  io.decode2Exe.instValid := inst_valid & io.instValid
+  io.decode2Exe.BrType := br_Type
+  io.decode2Exe.R1ren := rs1Ren
+  io.decode2Exe.R2ren := rs2Ren
+  io.decode2Exe.Raddr1 := io.regfileIO.raddr1
+  io.decode2Exe.Raddr2 := io.regfileIO.raddr2
+  io.decode2Exe.RdNum := Rd
+  io.decode2Exe.Op1 := op1
+  io.decode2Exe.Op2 := op2
+  io.decode2Exe.R2val := io.regfileIO.rdata2
+  io.decode2Exe.ALUOp := aluOp
+  io.decode2Exe.WBSel := wbSel
+  io.decode2Exe.RFWen := wbEn
+  io.decode2Exe.isMemOp := memEn
+  io.decode2Exe.MemOp := memOp
+  io.decode2Exe.MemType := memMask
+  io.decode2Exe.CSRCmd := csrOp
+  io.decode2Exe.isFence := isFence
+
 }
 
 object Decode extends App {
