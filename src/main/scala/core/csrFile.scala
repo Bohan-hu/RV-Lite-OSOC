@@ -245,6 +245,9 @@ class CSRFile extends Module {
     val csrWData = Input(UInt(64.W))
     val csrRdAddr = Input(UInt(10.W))
   })
+  def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
+    (oldValue & (~mask).asUInt()) | (writeValue & mask)
+  }
   // Hardwired Registers
   val misa_extension = "I"
   val extension_val = misa_extension.map(e => 1 << (e - 'A')).reduce(_ | _).asUInt()
@@ -320,30 +323,41 @@ class CSRFile extends Module {
     CSRAddr.mimpid,
     CSRAddr.mhartid
   )
-  val WrMaskedCSR = Map(
+  val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus     ->  "b001100100111".U,
+    CSRAddr.mip     ->  0.U,  // Cannot be written
   )
   val sideEffectCSR = Map(    // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
-    CSRAddr.mstatus     ->  "b001100100111".U,
+    // TODO: Finish the Effect Logics
+    CSRAddr.mstatus     ->  { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62,0))},
   )
   val csrWen = Wire(Bool()) // TODO
   csrWen := true.B
-  // CSRWr
-  csrMapping.map( kv => if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
-      when(io.csrWrAddr === kv._1.U && csrWen){
-        if(WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked
-          kv._2 := io.csrWData & WrMaskedCSR(kv._1)
-        } else {
-          kv._2 := io.csrWData
-        }
-      }
-  }
-  )
+  // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
   val writeCSRExists = csrMapping.map(kv => io.csrWrAddr === kv._1.U).reduce(_|_).asBool()
   val writeReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_|_).asBool()
-  val writeillegalCSR = ( (~writeCSRExists) || writeReadOnlyCSR ) & csrWen
+  val csrAddrLegal = writeCSRExists & (!writeReadOnlyCSR)
+  // TODO: Write CSR in Wrong Priv Mode (By Inspecting the address)
+  val writeillegalCSR = !csrAddrLegal & csrWen
   dontTouch(writeillegalCSR)
+  // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
+  csrMapping.map( kv =>
+    if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
+      when(io.csrWrAddr === kv._1.U && csrWen) {  // We have no need to consider whether the address is legal
+        // Since we only generate the logic for legal writing
+        if(WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked
+          kv._2 := io.csrWData & maskedWrite(kv._2, io.csrWData, WrMaskedCSR(kv._1))
+        } else {
+          kv._2 := io.csrWData
+        }
+        // Have Side Effect?
+        if(sideEffectCSR.contains(kv._1)) { // CSR Write is Masked
+          kv._2 := kv._2 & sideEffectCSR(kv._1)(kv._2)
+        }
+      }
+    }
+  )
 
 }
 
