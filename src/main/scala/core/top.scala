@@ -17,9 +17,12 @@ class Top extends Module {
   val branchRedir = Wire(new BranchRedir)
   val exceptionRedir = Wire(new ExceptionRedir)
   val csrFile = Module(new CSRFile)
+  // Dummy
   csrFile.io.csrRdAddr := decoder.io.instBundleIn.inst(9,0)
   csrFile.io.csrWData := decoder.io.instBundleIn.inst_pc
   csrFile.io.csrWrAddr := decoder.io.instBundleIn.inst(9,0)
+  csrFile.io.csrRen := decoder.io.instBundleIn.inst(0)
+  //
   branchRedir.redir := false.B
   exceptionRedir.redir := false.B
   branchRedir.TargetPC := 0.U
@@ -58,18 +61,6 @@ class Top extends Module {
   io.instBundleOut := wb.io.instBundleOut
 
   // Consts
-//  BoringUtils.addSource(false.B, "difftestMultiCommit")
-//  BoringUtils.addSource(false.B, "difftestIsMMIO")
-//  BoringUtils.addSource(false.B, "difftestIsRVC")
-//  BoringUtils.addSource(false.B, "difftestIsRVC2")
-//  BoringUtils.addSource(0.U, "difftestIntrNO")
-//  BoringUtils.addSource(0.U, "difftestMode")
-//  BoringUtils.addSource(0.U, "difftestMstatus")
-//  BoringUtils.addSource(0.U, "difftestSstatus")
-//  BoringUtils.addSource(0.U, "difftestMepc")
-//  BoringUtils.addSource(0.U, "difftestSepc")
-//  BoringUtils.addSource(0.U, "difftestMcause")
-//  BoringUtils.addSource(0.U, "difftestScause")
 }
 
 object Top extends App {

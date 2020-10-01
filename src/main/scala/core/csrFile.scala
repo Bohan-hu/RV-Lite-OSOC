@@ -256,11 +256,17 @@ class CSRFile extends Module {
     val csrWrAddr = Input(UInt(10.W))
     val csrWData = Input(UInt(64.W))
     val csrRdAddr = Input(UInt(10.W))
+    val csrRen = Input(Bool())
   })
-
+  val M = "b11".U
+  val S = "b01".U
+  val U = "b00".U
+  val accessCSRPriv = io.csrRdAddr(9,8)
   def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
+  val privMode = RegInit(M)
+  BoringUtils.addSource(RegNext(privMode), "difftestMode")
 
   // Hardwired Registers
   val misa_extension = "I"
@@ -349,23 +355,25 @@ class CSRFile extends Module {
   csrWen := true.B
   // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
-  val writeCSRExists = csrMapping.map(kv => io.csrWrAddr === kv._1.U).reduce(_ | _).asBool()
-  val writeReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_ | _).asBool()
-  val csrAddrLegal = writeCSRExists & (!writeReadOnlyCSR)
+  val CSRExists = csrMapping.map(kv => io.csrWrAddr === kv._1.U).reduce(_ | _).asBool()
+  val ReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_ | _).asBool()
+  val CSRFalsePriv = accessCSRPriv > privMode
+  val writeCSRAddrLegal = CSRExists & !ReadOnlyCSR & !CSRFalsePriv
   // TODO: Write CSR in Wrong Priv Mode (By Inspecting the address)
-  val writeillegalCSR = !csrAddrLegal & csrWen
-  dontTouch(writeillegalCSR)
+  val writeIllegalCSR = !writeCSRAddrLegal & csrWen
+  val readIllegalCSR = (CSRFalsePriv | !CSRExists) & io.csrRen
+  dontTouch(writeIllegalCSR)
+  dontTouch(readIllegalCSR)
   // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
   csrMapping.map(kv =>
     if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
-      when(io.csrWrAddr === kv._1.U && csrWen) { // We have no need to consider whether the address is legal
+      when(io.csrWrAddr === kv._1.U && csrWen && writeCSRAddrLegal) { // We have no need to consider whether the address is legal
         // Since we only generate the logic for legal writing
         val newValMasked = WireInit(io.csrWData)
-        val newValWithSideEffect = WireInit(io.csrWData)
         if (WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked ？
           newValMasked := maskedWrite(kv._2, io.csrWData, WrMaskedCSR(kv._1))
         }
-        newValWithSideEffect := newValMasked
+        val newValWithSideEffect = WireInit(newValMasked)
         if (sideEffectCSR.contains(kv._1)) { // Have Side Effect ?
           newValWithSideEffect := sideEffectCSR(kv._1)(newValMasked)
         }
