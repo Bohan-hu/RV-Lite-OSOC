@@ -1,6 +1,7 @@
 package core
 
 import chisel3._
+import chisel3.util.experimental.BoringUtils
 
 class RegRead extends Bundle {
   val raddr1 = Input(UInt(5.W))
@@ -43,6 +44,7 @@ class Regfile extends Module {
   when(io.wrPort.wen & io.wrPort.waddr.orR) {
     Regs(io.wrPort.waddr) := io.wrPort.wdata
   }
+  BoringUtils.addSource(VecInit((0 to 31).map(i => Regs(i))), "difftestRegs")
 }
 
 object Regfile extends App {

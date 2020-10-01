@@ -2,6 +2,7 @@ package core
 
 import chisel3._
 import chisel3.stage.ChiselStage
+import chisel3.util.experimental.BoringUtils
 import chisel3.util._
 import common.OpConstants._
 class WBIO extends Bundle {
@@ -14,6 +15,7 @@ class WBIO extends Bundle {
 
 class WB extends Module {
   val io = IO(new WBIO)
+  BoringUtils.addSource(RegNext(io.regfileWrite.wen), "difftestCommit")
   io.instBundleOut := io.instBundleIn
   io.regfileWrite.waddr := io.mem2Wb.RdNum
   io.regfileWrite.wen := io.mem2Wb.RFWen & io.instBundleIn.instValid

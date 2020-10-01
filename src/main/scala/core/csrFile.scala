@@ -2,6 +2,40 @@ package core
 
 import chisel3.util._
 import chisel3._
+import chisel3.stage.ChiselStage
+import chisel3.util.experimental.BoringUtils
+
+object ExceptionNo {
+  def instrAddrMisaligned = 0
+  def instrAccessFault    = 1
+  def illegalInstr        = 2
+  def breakPoint          = 3
+  def loadAddrMisaligned  = 4
+  def loadAccessFault     = 5
+  def storeAddrMisaligned = 6
+  def storeAccessFault    = 7
+  def ecallU              = 8
+  def ecallS              = 9
+  def ecallM              = 11
+  def instrPageFault      = 12
+  def loadPageFault       = 13
+  def storePageFault      = 15
+
+  val ExcePriority = Seq(
+    breakPoint, // TODO: different BP has different priority
+    instrPageFault,
+    instrAccessFault,
+    illegalInstr,
+    instrAddrMisaligned,
+    ecallM, ecallS, ecallU,
+    storeAddrMisaligned,
+    loadAddrMisaligned,
+    storePageFault,
+    loadPageFault,
+    storeAccessFault,
+    loadAccessFault
+  )
+}
 
 object CSRAddr {
   // Machine Information Registers
@@ -169,12 +203,6 @@ object CSRAddr {
 
 }
 
-object csr {
-  val CSRMapping = Array(
-
-  )
-}
-
 class mstatus extends Bundle {
   val SD = Bool()
   val reserved = UInt((64 - 39).W)
@@ -192,7 +220,7 @@ class mstatus extends Bundle {
   val XS = UInt(2.W)
   val FS = UInt(2.W)
   val MPP = UInt(2.W)
-  val reserved3 = UInt(2.W)
+  val HPP = UInt(2.W)
   val SPP = Bool()
   val MPIE = Bool()
   val UBE = Bool()
@@ -213,7 +241,9 @@ class mtvec_t extends Bundle {
 
 class CSRFile extends Module {
   val io = IO(new Bundle() {
-
+    val csrWrAddr = Input(UInt(10.W))
+    val csrWData = Input(UInt(64.W))
+    val csrRdAddr = Input(UInt(10.W))
   })
   // Hardwired Registers
   val misa_extension = "I"
@@ -229,13 +259,95 @@ class CSRFile extends Module {
   val reset_mtvec = WireInit(0.U.asTypeOf(new mtvec_t))   // todo: determine the reset value
   reset_mtvec.BASE := 0.U
   reset_mtvec.MODE := 0.U
-  val mtvec = RegInit(reset_mtvec)
+  val mtvec = RegInit(reset_mtvec.asUInt())
 
   // mdeleg and mideleg
-  val medelg = RegInit(UInt(64.W), 0.U)         // Machine Exception Delegation Register
-  val miedelg = RegInit(UInt(64.W), 0.U)        // Machine Interrupt Delegation Register
+  val medeleg = RegInit(UInt(64.W), 0.U)         // Machine Exception Delegation Register
+  val mideleg = RegInit(UInt(64.W), 0.U)        // Machine Interrupt Delegation Register
   val medelgAndMask = 1.U << 11                 // medelg[11] is hardwired to zero
 
+  val mcounteren = RegInit(UInt(64.W),0.U)
+  val mcause = RegInit(UInt(64.W),0.U)
+  BoringUtils.addSource(RegNext(mcause), "difftestMcause")
+  val mtval = RegInit(UInt(64.W),0.U)
+  val mepc = RegInit(UInt(64.W),0.U)
+  BoringUtils.addSource(RegNext(mepc), "difftestMepc")
+  val mie = RegInit(UInt(64.W),0.U)
+  val mip = RegInit(UInt(64.W),0.U)
 
+  //  val mip
+  val mstatus = RegInit(UInt(64.W),0x1800.U)
+  BoringUtils.addSource(RegNext(mstatus), "difftestMstatus")
+  val mscratch = RegInit(UInt(64.W), 0.U)
 
+  val pmpcfg0 = RegInit(UInt(64.W), 0.U)
+  val pmpcfg1 = RegInit(UInt(64.W), 0.U)
+  val pmpcfg2 = RegInit(UInt(64.W), 0.U)
+  val pmpcfg3 = RegInit(UInt(64.W), 0.U)
+  val pmpaddr0 = RegInit(UInt(64.W), 0.U)
+  val pmpaddr1 = RegInit(UInt(64.W), 0.U)
+  val pmpaddr2 = RegInit(UInt(64.W), 0.U)
+  val pmpaddr3 = RegInit(UInt(64.W), 0.U)
+
+  val csrRdAddr = Wire(UInt(8.W))
+  csrRdAddr := DontCare
+  val csrMapping = Array(
+    CSRAddr.mvendorid   ->    mvendorid,
+//    // Machine Information Registers
+    CSRAddr.marchid     ->    marchid,
+    CSRAddr.mimpid      ->    mimpid,
+    CSRAddr.mhartid     ->    mhartid,
+//    // Machine Trap Setup
+    CSRAddr.mstatus     ->    mstatus   ,
+    CSRAddr.misa        ->    misa,
+    CSRAddr.medeleg     ->    medeleg   ,
+    CSRAddr.mideleg     ->    mideleg   ,
+    CSRAddr.mie         ->    mie       ,
+    CSRAddr.mtvec       ->    mtvec     ,
+    CSRAddr.mcounteren  ->    mcounteren,
+//    // Machine Trap Handling
+    CSRAddr.mscratch    ->   mscratch   ,
+    CSRAddr.mepc        ->   mepc       ,
+    CSRAddr.mcause      ->   mcause     ,
+    CSRAddr.mtval       ->   mtval      ,
+    CSRAddr.mip         ->   mip        ,
+//    CSRAddr.mtinst      ->   mtinst     ,
+    CSRAddr.mtval       ->   mtval      ,
+  )
+  val readOnlyCSR = List(
+    CSRAddr.mvendorid,
+    CSRAddr.marchid,
+    CSRAddr.mimpid,
+    CSRAddr.mhartid
+  )
+  val WrMaskedCSR = Map(
+    CSRAddr.mstatus     ->  "b001100100111".U,
+  )
+  val sideEffectCSR = Map(    // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
+    CSRAddr.mstatus     ->  "b001100100111".U,
+  )
+  val csrWen = Wire(Bool()) // TODO
+  csrWen := true.B
+  // CSRWr
+  csrMapping.map( kv => if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
+      when(io.csrWrAddr === kv._1.U && csrWen){
+        if(WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked
+          kv._2 := io.csrWData & WrMaskedCSR(kv._1)
+        } else {
+          kv._2 := io.csrWData
+        }
+      }
+  }
+  )
+  // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
+  val writeCSRExists = csrMapping.map(kv => io.csrWrAddr === kv._1.U).reduce(_|_).asBool()
+  val writeReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_|_).asBool()
+  val writeillegalCSR = ( (~writeCSRExists) || writeReadOnlyCSR ) & csrWen
+  dontTouch(writeillegalCSR)
+
+}
+
+object CSRFile extends App {
+  val stage = new ChiselStage
+  stage.emitVerilog(new CSRFile)
 }
