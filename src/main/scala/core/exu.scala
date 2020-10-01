@@ -17,7 +17,7 @@ class Exe2Mem extends Bundle {
   val isFence = Bool()
 }
 class BranchRedir extends Bundle {
-  val TargetPC = Output(UInt(64.W))
+  val TargetPC = UInt(64.W)
   val redir = Bool()
 }
 class EXUIO extends Bundle {

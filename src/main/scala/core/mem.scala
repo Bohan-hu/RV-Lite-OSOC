@@ -6,6 +6,7 @@ import chisel3.stage.ChiselStage
 class Mem2Wb extends Bundle {
   val aluResult = UInt(64.W)
   val memResult = UInt(64.W)
+  val RdNum = UInt(5.W)
   val WBSel = UInt(2.W)
   val RFWen = Bool()
   val CSRCmd = UInt(3.W)
@@ -28,6 +29,7 @@ class MEM extends Module {
   io.mem2Wb.RFWen := io.exe2Mem.RFWen
   io.mem2Wb.CSRCmd := io.exe2Mem.CSRCmd
   io.mem2Wb.isFence := io.exe2Mem.isFence
+  io.mem2Wb.RdNum := io.exe2Mem.RdNum
   // passthrough
   io.instBundleOut := io.instBundleIn
 }

@@ -35,6 +35,11 @@ class Regfile extends Module {
         io.wrPort.wdata,
         Regs(io.rdPort.raddr2)),
       0.U)
+
+  // Unpipelined
+  io.rdPort.rdata1 := Mux(io.rdPort.raddr1.orR, Regs(io.rdPort.raddr1), 0.U)
+  io.rdPort.rdata2 := Mux(io.rdPort.raddr2.orR, Regs(io.rdPort.raddr2), 0.U)
+
   when(io.wrPort.wen & io.wrPort.waddr.orR) {
     Regs(io.wrPort.waddr) := io.wrPort.wdata
   }

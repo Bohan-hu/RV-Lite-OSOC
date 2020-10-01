@@ -2,7 +2,7 @@ package core
 import chisel3._
 
 class ExceptionRedir extends Bundle {
-  val excePC = Output(UInt(64.W))
+  val excePC = UInt(64.W)
   val redir = Bool()
 }
 class exceptionIO extends Bundle {
