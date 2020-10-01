@@ -32,14 +32,13 @@ class Decode2Exe extends Bundle {
 
 class Decode extends Module {
   val io = IO(new Bundle() {
-    val pc = Input(UInt(64.W))
-    val inst = Input(UInt(32.W))
-    val instValid = Input(Bool())
+    val instBundleIn = Input(new InstBundle)
     val regfileIO = Flipped(new RegRead)
     val decode2Exe = Output(new Decode2Exe)
+    val instBundleOut = Output(new InstBundle)
   })
 
-  def extractImm[T <: Instruction](inst: T): UInt = io.inst.asTypeOf(inst).imm_ext
+  def extractImm[T <: Instruction](inst: T): UInt = io.instBundleIn.inst.asTypeOf(inst).imm_ext
 
   val dummy =     List(N, BR_N  , OP1_RS1, OP2_RS2 ,  N   ,  N   , ALU_X    , WB_X ,  N   ,  N   , MEM_READ  , SZ_W  , CSR_X, N);
   val decodeops =
@@ -101,20 +100,20 @@ class Decode extends Module {
         FENCE  -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , WB_X   ,  N   ,  Y   , MEM_NOP   , SZ_X  , CSR_X, N)
         // we are already sequentially consistent, so no need to honor the fence instruction
     )
-  val decode_ops = ListLookup(io.inst, dummy, decodeops)
+  val decode_ops = ListLookup(io.instBundleIn.inst, dummy, decodeops)
   val (inst_valid: Bool) :: br_Type :: op1Sel :: op2Sel :: (rs1Ren: Bool) :: (rs2Ren: Bool) :: aluOp :: wbSel :: (wbEn: Bool) :: (memEn: Bool) :: memOp :: memMask :: csrOp :: (isFence : Bool) :: Nil = decode_ops
   // Decode 2 Exe
-  val Rd = io.inst.asTypeOf(new RTypeInstruction).rd
+  val Rd = io.instBundleIn.inst.asTypeOf(new RTypeInstruction).rd
   // Regfile connection
-  io.regfileIO.raddr1 := io.inst.asTypeOf(new RTypeInstruction).rs1
-  io.regfileIO.raddr2 := io.inst.asTypeOf(new RTypeInstruction).rs2
+  io.regfileIO.raddr1 := io.instBundleIn.inst.asTypeOf(new RTypeInstruction).rs1
+  io.regfileIO.raddr2 := io.instBundleIn.inst.asTypeOf(new RTypeInstruction).rs2
   val RS1 = io.regfileIO.rdata1
   val RS2 = io.regfileIO.rdata2
   // Get Operands
   val op1 = MuxLookup(op1Sel, RS1,
     Array(
       OP1_RS1 -> RS1,
-      OP1_PC -> io.pc
+      OP1_PC -> io.instBundleIn.inst_pc
     ))
   val op2 = MuxLookup(op2Sel, RS2,
     Array(
@@ -126,7 +125,7 @@ class Decode extends Module {
       IMM_BTYPE -> extractImm(new BTypeInstruction),
       IMM_ZEXT -> extractImm(new CSRIInstruction)
     ))
-  io.decode2Exe.instValid := inst_valid & io.instValid
+  io.decode2Exe.instValid := inst_valid & io.instBundleIn.instValid
   io.decode2Exe.BrType := br_Type
   io.decode2Exe.R1ren := rs1Ren
   io.decode2Exe.R2ren := rs2Ren
@@ -144,7 +143,9 @@ class Decode extends Module {
   io.decode2Exe.MemType := memMask
   io.decode2Exe.CSRCmd := csrOp
   io.decode2Exe.isFence := isFence
-
+  // Assign the inst
+  io.instBundleOut := io.instBundleIn
+  io.instBundleOut.instValid := io.decode2Exe.instValid
 }
 
 object Decode extends App {

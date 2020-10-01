@@ -21,10 +21,12 @@ class top extends Module {
   ifu.io.rdata := imem.io.rdata
 
   // IFU <> DECODER
-  decoder.io.inst := ifu.io.inst
-  decoder.io.instValid := ifu.io.instValid
-  decoder.io.pc := ifu.io.inst_pc
+  decoder.io.instBundleIn := ifu.io.inst_out
   decoder.io.regfileIO <> regfile.io.rdPort
+
+
+  // DECODER <> EXU
+
 
   // dummy
   val dummy_rfwr = Wire(new RegWrite)

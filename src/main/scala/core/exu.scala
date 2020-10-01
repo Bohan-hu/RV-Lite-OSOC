@@ -21,14 +21,13 @@ class BranchRedir extends Bundle {
   val redir = Bool()
 }
 class EXUIO extends Bundle {
-  val instValid = Input(Bool())
-  val inst = Input(UInt(32.W))
-  val pc = Input(UInt(64.W))
+  val instBundleIn = Input(new InstBundle)
   //  val wbInfoMem = Input()
   //  val wbInfowb = Input()
   val decode2Exe = Input(new Decode2Exe)
   val exe2Mem = Output(new Exe2Mem)
   val exe2IF = Output(new BranchRedir)
+  val instBundleOut = Output(new InstBundle)
 }
 
 class EXU extends Module {
@@ -66,7 +65,8 @@ class EXU extends Module {
     BR_LTU -> (op1 < rs2)
   )
   io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond)
-  io.exe2IF.TargetPC := Mux(io.decode2Exe.BrType === BR_JR, alu.io.out, io.pc + io.decode2Exe.Op2)
+  io.exe2IF.TargetPC := Mux(io.decode2Exe.BrType === BR_JR, alu.io.out, io.instBundleIn.inst_pc + io.decode2Exe.Op2)
+  io.instBundleOut := io.instBundleIn
 }
 
 object EXU extends App {
