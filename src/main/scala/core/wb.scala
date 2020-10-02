@@ -15,7 +15,7 @@ class WBIO extends Bundle {
 
 class WB extends Module {
   val io = IO(new WBIO)
-  BoringUtils.addSource(RegNext(io.regfileWrite.wen), "difftestCommit")
+  BoringUtils.addSource(RegNext(io.instBundleIn.instValid), "difftestCommit")
   io.instBundleOut := io.instBundleIn
   io.regfileWrite.waddr := io.mem2Wb.RdNum
   io.regfileWrite.wen := io.mem2Wb.RFWen & io.instBundleIn.instValid

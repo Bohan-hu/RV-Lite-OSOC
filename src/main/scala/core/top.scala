@@ -8,7 +8,7 @@ class Top extends Module {
     val instBundleOut = Output(new InstBundle)
   })
   val ifu = Module(new IFU)
-  val imem = Module(new SyncReadOnlyMem)
+  val imem = Module(new common.SyncReadOnlyMem)
   val decoder = Module(new Decode)
   val exu = Module(new EXU)
   val mem = Module(new MEM)
@@ -34,7 +34,7 @@ class Top extends Module {
 
   // IFU <> IMEM
   imem.io.rreq := ifu.io.inst_req
-  imem.io.raddr := ifu.io.inst_pc
+  imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
   ifu.io.rvalid:= imem.io.data_valid
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := branchRedir
@@ -57,7 +57,10 @@ class Top extends Module {
   wb.io.mem2Wb := mem.io.mem2Wb
   wb.io.regfileWrite <> regfile.io.wrPort
 
-  io.pc := ifu.io.inst_pc
+  io.pc := RegNext(ifu.io.inst_pc)
+  BoringUtils.addSource(RegNext(io.pc), "difftestThisPC")
+  BoringUtils.addSource(io.instBundleOut.inst, "difftestThisINST")
+
   io.instBundleOut := wb.io.instBundleOut
 
   // Consts
