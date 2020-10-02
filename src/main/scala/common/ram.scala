@@ -34,10 +34,10 @@ class SyncReadOnlyMem extends Module {
   })
   val ram = Module(new RAMHelper)
   ram.io.clk := io.clk
-  io.data_valid := true.B
+  io.data_valid := RegNext(!io.reset)
   val raddr = RegNext(io.raddr)
-  ram.io.rIdx := Cat(io.raddr(63,3), 0.U(3.W))
-  io.rdata := Mux(!raddr(2), ram.io.rdata(63,32), ram.io.rdata(31,0))
+  ram.io.rIdx := io.raddr(63,3)
+  io.rdata := Mux(raddr(2), ram.io.rdata(63,32), ram.io.rdata(31,0))
   ram.io.wIdx := 0.U
   ram.io.wdata := 0.U
   ram.io.wmask := 0.U

@@ -57,9 +57,9 @@ class Top extends Module {
   wb.io.mem2Wb := mem.io.mem2Wb
   wb.io.regfileWrite <> regfile.io.wrPort
 
-  io.pc := RegNext(ifu.io.inst_pc)
-  BoringUtils.addSource(RegNext(io.pc), "difftestThisPC")
-  BoringUtils.addSource(io.instBundleOut.inst, "difftestThisINST")
+  io.pc := wb.io.instBundleOut.inst_pc
+  BoringUtils.addSource(RegNext(wb.io.instBundleOut.inst_pc), "difftestThisPC")
+  BoringUtils.addSource(RegNext(wb.io.instBundleOut.inst), "difftestThisINST")
 
   io.instBundleOut := wb.io.instBundleOut
 

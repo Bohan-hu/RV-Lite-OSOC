@@ -31,8 +31,8 @@ class IFU extends Module {
   io.stallReq := !io.rvalid
 
   io.inst_out.inst := io.rdata
-  io.inst_out.instValid := io.rvalid
-  io.inst_out.inst_pc := io.inst_pc
+  io.inst_out.instValid := RegNext(io.rvalid)
+  io.inst_out.inst_pc := RegNext(io.inst_pc)
 }
 
 object IFU extends App {
