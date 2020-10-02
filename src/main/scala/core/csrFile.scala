@@ -344,11 +344,10 @@ class CSRFile extends Module {
     CSRAddr.mhartid
   )
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
-    CSRAddr.mstatus -> "b001100100111".U,
+    CSRAddr.mstatus -> "hffffffffffffffff".U,
     CSRAddr.mip -> 0.U, // Cannot be written
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
-    // TODO: Finish the Effect Logics
     CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
   )
   val csrWen = Wire(Bool()) // TODO
@@ -359,7 +358,6 @@ class CSRFile extends Module {
   val ReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_ | _).asBool()
   val CSRFalsePriv = accessCSRPriv > privMode
   val writeCSRAddrLegal = CSRExists & !ReadOnlyCSR & !CSRFalsePriv
-  // TODO: Write CSR in Wrong Priv Mode (By Inspecting the address)
   val writeIllegalCSR = !writeCSRAddrLegal & csrWen
   val readIllegalCSR = (CSRFalsePriv | !CSRExists) & io.csrRen
   dontTouch(writeIllegalCSR)
@@ -381,6 +379,8 @@ class CSRFile extends Module {
       }
     }
   )
+  // Illegal Instruction
+  val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
 }
 
 object CSRFile extends App {
