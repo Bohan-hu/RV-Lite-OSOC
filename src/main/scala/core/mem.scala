@@ -46,7 +46,10 @@ object MMIO {
     (0x40002000L, 0x1000L), // dummy sdcard
     (0x42000000L, 0x1000L), // DiffTestCtrl
     (0x40004000L, 0x1000L), // meipGen
-    (0x40003000L, 0x1000L) // dma
+    (0x40003000L, 0x1000L), // dma
+
+    (0x38000000L, 0x00010000L), // CLINT
+    (0x3c000000L, 0x04000000L)  // PLIC
   )
 
   def inMMIORange(Addr: UInt) = {
@@ -82,10 +85,11 @@ object DataTypesUtils {
 
 class MEM extends Module {
   val io = IO(new MEMIO)
+  val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
   val memRdata = io.mem2dmem.memRdata
   val address = io.exe2Mem.aluResult - 0x80000000L.U
   val signExt = io.exe2Mem.MemType === SZ_B || io.exe2Mem.MemType === SZ_H || io.exe2Mem.MemType === SZ_W
-  val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ
+  val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO
   io.mem2dmem.memRreq := memRead
   val memPending = !io.mem2dmem.memRvalid & memRead
   when(memRead) {
@@ -112,8 +116,6 @@ class MEM extends Module {
       8.U -> memRdata
     )
   )
-
-  val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
   io.mem2Wb.aluResult := io.exe2Mem.aluResult // Mem Address
   io.mem2dmem.memAddr := address
   io.mem2dmem.memWdata := io.exe2Mem.R2val
@@ -134,7 +136,7 @@ class MEM extends Module {
   // passthrough
 
   // MMIO Flag
-  BoringUtils.addSource(RegNext(io.exe2Mem.isMemOp & MMIO.inMMIORange(io.exe2Mem.aluResult) & !memPending), "difftestIsMMIO")
+  BoringUtils.addSource(RegNext(io.exe2Mem.isMemOp & isMMIO), "difftestIsMMIO")
 }
 
 object MEM extends App {
