@@ -41,7 +41,7 @@ class EXU extends Module {
   alu.io.srcA := io.decode2Exe.Op1
   alu.io.srcB := io.decode2Exe.Op2
   alu.io.aluOP := io.decode2Exe.ALUOp
-  alu.io.isWordOp := false.B  // todo
+  alu.io.isWordOp := io.decode2Exe.isWordOp
   // Pass through
   io.exe2Mem.aluResult := alu.io.out
   io.exe2Mem.RdNum     := io.decode2Exe.RdNum

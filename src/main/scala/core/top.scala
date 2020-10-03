@@ -14,18 +14,15 @@ class Top extends Module {
   val mem = Module(new MEM)
   val wb = Module(new WB)
   val regfile = Module(new Regfile)
-  val branchRedir = Wire(new BranchRedir)
   val exceptionRedir = Wire(new ExceptionRedir)
   val csrFile = Module(new CSRFile)
   // Dummy
-  csrFile.io.csrRdAddr := decoder.io.instBundleIn.inst(9,0)
-  csrFile.io.csrWData := decoder.io.instBundleIn.inst_pc
-  csrFile.io.csrWrAddr := decoder.io.instBundleIn.inst(9,0)
-  csrFile.io.csrRen := decoder.io.instBundleIn.inst(0)
+  csrFile.io.csrRdAddr := 0.U
+  csrFile.io.csrWData := 0.U
+  csrFile.io.csrWrAddr := 0.U
+  csrFile.io.csrRen := 0.U
   //
-  branchRedir.redir := false.B
   exceptionRedir.redir := false.B
-  branchRedir.TargetPC := 0.U
   exceptionRedir.excePC := 0.U
 
   // IMEM < clk
@@ -37,7 +34,7 @@ class Top extends Module {
   imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
   ifu.io.rvalid:= imem.io.data_valid
   ifu.io.rdata := imem.io.rdata
-  ifu.io.branchRedir := branchRedir
+  ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := exceptionRedir
 
   // IFU <> DECODER
