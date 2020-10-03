@@ -64,7 +64,7 @@ class EXU extends Module {
     BR_LT -> (op1.asSInt < rs2.asSInt),
     BR_LTU -> (op1 < rs2)
   )
-  io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond)
+  io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond) & io.instBundleIn.instValid
   io.exe2IF.TargetPC := Mux(io.decode2Exe.BrType === BR_JR, alu.io.out, io.instBundleIn.inst_pc + io.decode2Exe.Op2)
   io.instBundleOut := io.instBundleIn
 }

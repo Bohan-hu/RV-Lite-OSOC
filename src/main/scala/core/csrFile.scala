@@ -261,10 +261,12 @@ class CSRFile extends Module {
   val M = "b11".U
   val S = "b01".U
   val U = "b00".U
-  val accessCSRPriv = io.csrRdAddr(9,8)
+  val accessCSRPriv = io.csrRdAddr(9, 8)
+
   def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
+
   val privMode = RegInit(M)
   BoringUtils.addSource(RegNext(privMode), "difftestMode")
 

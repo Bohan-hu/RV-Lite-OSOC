@@ -2,6 +2,7 @@ package core
 import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
+import common.SyncReadWriteMem
 class Top extends Module {
   val io = IO(new Bundle() {
     val pc = Output(UInt(64.W))
@@ -9,6 +10,7 @@ class Top extends Module {
   })
   val ifu = Module(new IFU)
   val imem = Module(new common.SyncReadOnlyMem)
+  val dmem = Module(new common.SyncReadWriteMem)
   val decoder = Module(new Decode)
   val exu = Module(new EXU)
   val mem = Module(new MEM)
@@ -28,7 +30,7 @@ class Top extends Module {
   // IMEM < clk
   imem.io.clk := clock.asBool()
   imem.io.reset := reset.asBool()
-
+  imem.io.pause := mem.io.pauseReq
   // IFU <> IMEM
   imem.io.rreq := ifu.io.inst_req
   imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
@@ -36,6 +38,7 @@ class Top extends Module {
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := exceptionRedir
+  ifu.io.pause := mem.io.pauseReq   // Todo: Modify as 5 stage pipeline
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out
@@ -49,10 +52,13 @@ class Top extends Module {
   mem.io.instBundleIn := exu.io.instBundleOut
   mem.io.exe2Mem := exu.io.exe2Mem
 
-  // MEM <> WB
-  wb.io.instBundleIn := exu.io.instBundleOut
+  // MEM <> WB / MEM <> dmem
+  wb.io.instBundleIn := mem.io.instBundleOut
   wb.io.mem2Wb := mem.io.mem2Wb
   wb.io.regfileWrite <> regfile.io.wrPort
+  dmem.io.clk := clock.asBool()
+  dmem.io.reset := reset.asBool()
+  dmem.io.mem2dmem <> mem.io.mem2dmem
 
   io.pc := wb.io.instBundleOut.inst_pc
   BoringUtils.addSource(RegNext(wb.io.instBundleOut.inst_pc), "difftestThisPC")

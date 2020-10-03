@@ -133,7 +133,7 @@ class Decode extends Module {
     ))
   val op2 = MuxLookup(op2Sel, RS2,
     Array(
-      OP2_RS2 -> RS1,
+      OP2_RS2 -> RS2,
       IMM_ITYPE -> extractImm(new ITypeInstruction),
       IMM_STYPE -> extractImm(new STypeInstruction),
       IMM_UTYPE -> extractImm(new UTypeInstruction),
