@@ -69,10 +69,45 @@ object DataTypesUtils {
   def ByteMaskGen(dataSize: UInt, Addr: UInt) = {
     MuxLookup(dataSize, 8.U,
       Array(
-        1.U -> UIntToOH(Addr(2, 0)),
+        1.U -> Reverse(UIntToOH(Addr(2, 0))),
         2.U -> UIntToOH(Addr(2, 1)).asBools().map(Fill(2, _)).reduce(Cat(_, _)),
         4.U -> UIntToOH(Addr(2)).asBools().map(Fill(4, _)).reduce(Cat(_, _)),
         8.U -> Fill(8, 1.U)
+      )
+    )
+  }
+
+  def WDataGen(dataSize: UInt, Addr: UInt, WData: UInt) = {
+    MuxLookup(dataSize, 8.U,
+      Array(
+        1.U -> {
+          MuxLookup(Addr(2,0),0.U,
+            Array(
+              0.U -> Cat(Fill(56, 0.U(1.W)), WData(7,0)),
+              1.U -> Cat(Fill(48, 0.U(1.W)), WData(7,0),Fill(8, 0.U(1.W))),
+              2.U -> Cat(Fill(40, 0.U(1.W)), WData(7,0),Fill(16,0.U(1.W))),
+              3.U -> Cat(Fill(32, 0.U(1.W)), WData(7,0),Fill(24,0.U(1.W))),
+              4.U -> Cat(Fill(24, 0.U(1.W)), WData(7,0),Fill(32,0.U(1.W))),
+              5.U -> Cat(Fill(16, 0.U(1.W)), WData(7,0),Fill(40,0.U(1.W))),
+              6.U -> Cat(Fill(8, 0.U(1.W)),  WData(7,0),Fill(48,0.U(1.W))),
+              7.U -> Cat(WData(7,0),Fill(56,0.U(1.W)))))
+        },
+        2.U -> {
+          MuxLookup(Addr(2,1),0.U,
+            Array(
+              0.U -> Cat(Fill(48, 0.U(1.W)), WData(15,0)),
+              1.U -> Cat(Fill(32, 0.U(1.W)), WData(15,0),Fill(16, 0.U(1.W))),
+              2.U -> Cat(Fill(16, 0.U(1.W)), WData(15,0),Fill(32, 0.U(1.W))),
+              3.U -> Cat(WData(15,0),Fill(48,0.U(1.W)))))
+        },
+        4.U -> {
+          MuxLookup(Addr(2),0.U,
+            Array(
+              0.U -> Cat(Fill(32, 0.U(1.W)), WData(31,0)),
+              1.U -> Cat(WData(31,0), Fill(32, 0.U(1.W))),
+            ))
+        },
+        8.U -> WData
       )
     )
   }
@@ -127,7 +162,7 @@ class MEM extends Module {
   )
   io.mem2Wb.aluResult := io.exe2Mem.aluResult // Mem Address
   io.mem2dmem.memAddr := address
-  io.mem2dmem.memWdata := io.exe2Mem.R2val
+  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, address, io.exe2Mem.R2val)
   io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, address))
   io.mem2dmem.memWen := io.instBundleIn.instValid & io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE & !isMMIO
   io.mem2Wb.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
