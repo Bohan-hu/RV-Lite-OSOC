@@ -5,6 +5,7 @@ import common.Instructions._
 import common._
 import chisel3._
 import chisel3.util._
+import chisel3.util.experimental.BoringUtils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag

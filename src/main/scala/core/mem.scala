@@ -116,12 +116,21 @@ class MEM extends Module {
       8.U -> memRdata
     )
   )
+  val memRdataRawExt = MuxLookup(dataSize, memRdata, // Including Word Select
+    Array( // Byte, Addressed by addr[2:0]
+      1.U -> memRdata.asTypeOf(DataTypesUtils.Bytes)(address(2, 0)),
+      2.U -> memRdata.asTypeOf(DataTypesUtils.HalfWords)(address(2, 1)),
+      4.U -> memRdata.asTypeOf(DataTypesUtils.Words)(address(2)),
+      8.U -> memRdata
+    ).map( kw => { kw._1 -> signExt64(kw._2) }
+  )
+  )
   io.mem2Wb.aluResult := io.exe2Mem.aluResult // Mem Address
   io.mem2dmem.memAddr := address
   io.mem2dmem.memWdata := io.exe2Mem.R2val
   io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, address))
   io.mem2dmem.memWen := io.instBundleIn.instValid & io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE & !isMMIO
-  io.mem2Wb.memResult := Mux(signExt, signExt64(memRdataRaw), memRdataRaw)
+  io.mem2Wb.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
   when(memPending) {
     io.instBundleOut := io.instBundleIn
     io.instBundleOut.instValid := false.B
