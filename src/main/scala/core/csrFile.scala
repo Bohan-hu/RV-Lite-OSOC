@@ -4,6 +4,7 @@ import chisel3.util._
 import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
+import common.OpConstants._
 
 object ExceptionNo {
   def instrAddrMisaligned = 0
@@ -51,167 +52,167 @@ object ExceptionNo {
 }
 
 object CSRAddr {
-  // Machine Information Registers
-  val mvendorid = 0xf11
-  val marchid = 0xf12
-  val mimpid = 0xf13
-  val mhartid = 0xf14
-  // Machine Trap Setup
-  val mstatus = 0x300
-  val misa = 0x301
-  val medeleg = 0x302
-  val mideleg = 0x303
-  val mie = 0x304
-  val mtvec = 0x305
-  val mcounteren = 0x306
-  // Machine Trap Handling
-  val mscratch = 0x340
-  val mepc = 0x341
-  val mcause = 0x342
-  val mtval = 0x343
-  val mip = 0x344
-  val mtinst = 0x34a
-  val mtval2 = 0x34b
-  // Machine Memory Protection
-  val pmpcfg0 = 0x3a0
-  val pmpcfg2 = 0x3a2
-  val pmpcfg4 = 0x3a4
-  val pmpcfg6 = 0x3a6
-  val pmpcfg8 = 0x3a8
-  val pmpcfg10 = 0x3aa
-  val pmpcfg12 = 0x3ac
-  val pmpcfg14 = 0x3ae
-  // TODO:PMPADDRx
+  // Machine Information Registers.U
+  val mvendorid = 0xf11.U
+  val marchid = 0xf12.U
+  val mimpid = 0xf13.U
+  val mhartid = 0xf14.U
+  // Machine Trap Setup.U
+  val mstatus = 0x300.U
+  val misa = 0x301.U
+  val medeleg = 0x302.U
+  val mideleg = 0x303.U
+  val mie = 0x304.U
+  val mtvec = 0x305.U
+  val mcounteren = 0x306.U
+  // Machine Trap Handling.U
+  val mscratch = 0x340.U
+  val mepc = 0x341.U
+  val mcause = 0x342.U
+  val mtval = 0x343.U
+  val mip = 0x344.U
+  val mtinst = 0x34a.U
+  val mtval2 = 0x34b.U
+  // Machine Memory Protection.U
+  val pmpcfg0 = 0x3a0.U
+  val pmpcfg2 = 0x3a2.U
+  val pmpcfg4 = 0x3a4.U
+  val pmpcfg6 = 0x3a6.U
+  val pmpcfg8 = 0x3a8.U
+  val pmpcfg10 = 0x3aa.U
+  val pmpcfg12 = 0x3ac.U
+  val pmpcfg14 = 0x3ae.U
+  // TODO:PMPADD.UR.Ux
 
 
-  // Machine Counter/Timers
-  val mcycle = 0xb00
-  val minstret = 0xb02
-  val mhpmcounter3 = 0xb03
-  val mhpmcounter4 = 0xb04
-  val mhpmcounter5 = 0xb05
-  val mhpmcounter6 = 0xb06
-  val mhpmcounter7 = 0xb07
-  val mhpmcounter8 = 0xb08
-  val mhpmcounter9 = 0xb09
-  val mhpmcounter10 = 0xb0a
-  val mhpmcounter11 = 0xb0b
-  val mhpmcounter12 = 0xb0c
-  val mhpmcounter13 = 0xb0d
-  val mhpmcounter14 = 0xb0e
-  val mhpmcounter15 = 0xb0f
-  val mhpmcounter16 = 0xb10
-  val mhpmcounter17 = 0xb11
-  val mhpmcounter18 = 0xb12
-  val mhpmcounter19 = 0xb13
-  val mhpmcounter20 = 0xb14
-  val mhpmcounter21 = 0xb15
-  val mhpmcounter22 = 0xb16
-  val mhpmcounter23 = 0xb17
-  val mhpmcounter24 = 0xb18
-  val mhpmcounter25 = 0xb19
-  val mhpmcounter26 = 0xb1a
-  val mhpmcounter27 = 0xb1b
-  val mhpmcounter28 = 0xb1c
-  val mhpmcounter29 = 0xb1d
-  val mhpmcounter30 = 0xb1e
-  val mhpmcounter31 = 0xb1f
-  // Machine Counter Setup
-  val mcountinhibit = 0x320
-  val mhpmevent3 = 0x323
-  val mhpmevent4 = 0x324
-  val mhpmevent5 = 0x325
-  val mhpmevent6 = 0x326
-  val mhpmevent7 = 0x327
-  val mhpmevent8 = 0x328
-  val mhpmevent9 = 0x329
-  val mhpmevent10 = 0x32a
-  val mhpmevent11 = 0x32b
-  val mhpmevent12 = 0x32c
-  val mhpmevent13 = 0x32d
-  val mhpmevent14 = 0x32e
-  val mhpmevent15 = 0x32f
-  val mhpmevent16 = 0x330
-  val mhpmevent17 = 0x331
-  val mhpmevent18 = 0x332
-  val mhpmevent19 = 0x333
-  val mhpmevent20 = 0x334
-  val mhpmevent21 = 0x335
-  val mhpmevent22 = 0x336
-  val mhpmevent23 = 0x337
-  val mhpmevent24 = 0x338
-  val mhpmevent25 = 0x339
-  val mhpmevent26 = 0x33a
-  val mhpmevent27 = 0x33b
-  val mhpmevent28 = 0x33c
-  val mhpmevent29 = 0x33d
-  val mhpmevent30 = 0x33e
-  val mhpmevent31 = 0x33f
+  // Machine Counter/Timers.U
+  val mcycle = 0xb00.U
+  val minstret = 0xb02.U
+  val mhpmcounter3 = 0xb03.U
+  val mhpmcounter4 = 0xb04.U
+  val mhpmcounter5 = 0xb05.U
+  val mhpmcounter6 = 0xb06.U
+  val mhpmcounter7 = 0xb07.U
+  val mhpmcounter8 = 0xb08.U
+  val mhpmcounter9 = 0xb09.U
+  val mhpmcounter10 = 0xb0a.U
+  val mhpmcounter11 = 0xb0b.U
+  val mhpmcounter12 = 0xb0c.U
+  val mhpmcounter13 = 0xb0d.U
+  val mhpmcounter14 = 0xb0e.U
+  val mhpmcounter15 = 0xb0f.U
+  val mhpmcounter16 = 0xb10.U
+  val mhpmcounter17 = 0xb11.U
+  val mhpmcounter18 = 0xb12.U
+  val mhpmcounter19 = 0xb13.U
+  val mhpmcounter20 = 0xb14.U
+  val mhpmcounter21 = 0xb15.U
+  val mhpmcounter22 = 0xb16.U
+  val mhpmcounter23 = 0xb17.U
+  val mhpmcounter24 = 0xb18.U
+  val mhpmcounter25 = 0xb19.U
+  val mhpmcounter26 = 0xb1a.U
+  val mhpmcounter27 = 0xb1b.U
+  val mhpmcounter28 = 0xb1c.U
+  val mhpmcounter29 = 0xb1d.U
+  val mhpmcounter30 = 0xb1e.U
+  val mhpmcounter31 = 0xb1f.U
+  // Machine Counter Setup.U
+  val mcountinhibit = 0x320.U
+  val mhpmevent3 = 0x323.U
+  val mhpmevent4 = 0x324.U
+  val mhpmevent5 = 0x325.U
+  val mhpmevent6 = 0x326.U
+  val mhpmevent7 = 0x327.U
+  val mhpmevent8 = 0x328.U
+  val mhpmevent9 = 0x329.U
+  val mhpmevent10 = 0x32a.U
+  val mhpmevent11 = 0x32b.U
+  val mhpmevent12 = 0x32c.U
+  val mhpmevent13 = 0x32d.U
+  val mhpmevent14 = 0x32e.U
+  val mhpmevent15 = 0x32f.U
+  val mhpmevent16 = 0x330.U
+  val mhpmevent17 = 0x331.U
+  val mhpmevent18 = 0x332.U
+  val mhpmevent19 = 0x333.U
+  val mhpmevent20 = 0x334.U
+  val mhpmevent21 = 0x335.U
+  val mhpmevent22 = 0x336.U
+  val mhpmevent23 = 0x337.U
+  val mhpmevent24 = 0x338.U
+  val mhpmevent25 = 0x339.U
+  val mhpmevent26 = 0x33a.U
+  val mhpmevent27 = 0x33b.U
+  val mhpmevent28 = 0x33c.U
+  val mhpmevent29 = 0x33d.U
+  val mhpmevent30 = 0x33e.U
+  val mhpmevent31 = 0x33f.U
 
-  // =========================== USER MODE BEGIN =================================
+  // =========================== USER MODE BEGIN ===============================.U==
 
-  // User Trap Setup
-  val ustatus = 0x000
-  val uie = 0x004
-  val utvec = 0x005
-  // User Trap Handling
-  val uscratch = 0x040
-  val uepc = 0x041
-  val ucause = 0x042
-  val utval = 0x043
-  val uip = 0x044
-  // User Counter/Timers
-  val cycle = 0xc00
-  val time = 0xc01
-  val instret = 0xc02
-  val hpmcounter3 = 0xc03
-  val hpmcounter4 = 0xc04
-  val hpmcounter5 = 0xc05
-  val hpmcounter6 = 0xc06
-  val hpmcounter7 = 0xc07
-  val hpmcounter8 = 0xc08
-  val hpmcounter9 = 0xc09
-  val hpmcounter10 = 0xc0a
-  val hpmcounter11 = 0xc0b
-  val hpmcounter12 = 0xc0c
-  val hpmcounter13 = 0xc0d
-  val hpmcounter14 = 0xc0e
-  val hpmcounter15 = 0xc0f
-  val hpmcounter16 = 0xc10
-  val hpmcounter17 = 0xc11
-  val hpmcounter18 = 0xc12
-  val hpmcounter19 = 0xc13
-  val hpmcounter20 = 0xc14
-  val hpmcounter21 = 0xc15
-  val hpmcounter22 = 0xc16
-  val hpmcounter23 = 0xc17
-  val hpmcounter24 = 0xc18
-  val hpmcounter25 = 0xc19
-  val hpmcounter26 = 0xc1a
-  val hpmcounter27 = 0xc1b
-  val hpmcounter28 = 0xc1c
-  val hpmcounter29 = 0xc1d
-  val hpmcounter30 = 0xc1e
-  val hpmcounter31 = 0xc1f
+  // User Trap Setup.U
+  val ustatus = 0x000.U
+  val uie = 0x004.U
+  val utvec = 0x005.U
+  // User Trap Handling.U
+  val uscratch = 0x040.U
+  val uepc = 0x041.U
+  val ucause = 0x042.U
+  val utval = 0x043.U
+  val uip = 0x044.U
+  // User Counter/Timers.U
+  val cycle = 0xc00.U
+  val time = 0xc01.U
+  val instret = 0xc02.U
+  val hpmcounter3 = 0xc03.U
+  val hpmcounter4 = 0xc04.U
+  val hpmcounter5 = 0xc05.U
+  val hpmcounter6 = 0xc06.U
+  val hpmcounter7 = 0xc07.U
+  val hpmcounter8 = 0xc08.U
+  val hpmcounter9 = 0xc09.U
+  val hpmcounter10 = 0xc0a.U
+  val hpmcounter11 = 0xc0b.U
+  val hpmcounter12 = 0xc0c.U
+  val hpmcounter13 = 0xc0d.U
+  val hpmcounter14 = 0xc0e.U
+  val hpmcounter15 = 0xc0f.U
+  val hpmcounter16 = 0xc10.U
+  val hpmcounter17 = 0xc11.U
+  val hpmcounter18 = 0xc12.U
+  val hpmcounter19 = 0xc13.U
+  val hpmcounter20 = 0xc14.U
+  val hpmcounter21 = 0xc15.U
+  val hpmcounter22 = 0xc16.U
+  val hpmcounter23 = 0xc17.U
+  val hpmcounter24 = 0xc18.U
+  val hpmcounter25 = 0xc19.U
+  val hpmcounter26 = 0xc1a.U
+  val hpmcounter27 = 0xc1b.U
+  val hpmcounter28 = 0xc1c.U
+  val hpmcounter29 = 0xc1d.U
+  val hpmcounter30 = 0xc1e.U
+  val hpmcounter31 = 0xc1f.U
 
-  // ============================= USER MODE END ==========================
+  // ============================= USER MODE END =========================
 
   // ============================== SUPERVISOR MODE BEGIN =====================
-  // Supervisor Trap Setup
-  val sstatus = 0x100
-  val sedeleg = 0x102
-  val sideleg = 0x103
-  val sie = 0x104
-  val stvec = 0x105
-  val scounteren = 0x106
-  // Supervisor Trap Handling
-  val sscratch = 0x140
-  val sepc = 0x141
-  val scause = 0x142
-  val stval = 0x143
-  val sip = 0x144
+  // Supervisor Trap Setup.U
+  val sstatus = 0x100.U
+  val sedeleg = 0x102.U
+  val sideleg = 0x103.U
+  val sie = 0x104.U
+  val stvec = 0x105.U
+  val scounteren = 0x106.U
+  // Supervisor Trap Handling.U
+  val sscratch = 0x140.U
+  val sepc = 0x141.U
+  val scause = 0x142.U
+  val stval = 0x143.U
+  val sip = 0x144.U
   // Supervisor Protection and Translation
-  val satp = 0x180
+  val satp = 0x180.U
   // ======================= SUPERVISOR MODE END =======================
 
 }
@@ -251,24 +252,36 @@ class mtvec_t extends Bundle {
 }
 
 
+class CSRIO extends Bundle {
+  val instValid = Input(Bool())
+  val csrWData = Input(UInt(64.W))
+  val csrAddr = Input(UInt(12.W))
+  val csrOp = Input(UInt(3.W))
+  val instRd = Input(UInt(5.W)) // Destination Register
+  val instRs = Input(UInt(5.W))
+  val csrRdata = Output(UInt(64.W))
+  val illegalInst = Output(Bool())
+}
+
 class CSRFile extends Module {
-  val io = IO(new Bundle() {
-    val csrWrAddr = Input(UInt(10.W))
-    val csrWData = Input(UInt(64.W))
-    val csrRdAddr = Input(UInt(10.W))
-    val csrRen = Input(Bool())
-  })
+  val io = IO(new CSRIO)
   val M = "b11".U
   val S = "b01".U
   val U = "b00".U
-  val accessCSRPriv = io.csrRdAddr(9, 8)
+  val accessCSRPriv = io.csrAddr(9, 8)
+  //             IF the instruction is CSRRW / CSRRWI               else
+  val csrRen = io.instValid && ((io.csrOp === CSR_W && io.instRd =/= 0.U) || (io.csrOp =/= CSR_X && io.csrOp =/= CSR_W))
+  val csrWen = io.instValid && !(io.csrOp === CSR_X ||
+                ((io.csrOp === CSR_S || io.csrOp === CSR_C) && io.instRs === 0.U) ||
+                ((io.csrOp === CSR_SI || io.csrOp === CSR_CI) && io.csrWData === 0.U))
+
 
   def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
 
   val privMode = RegInit(M)
-  BoringUtils.addSource(RegNext(privMode), "difftestMode")
+  BoringUtils.addSource(privMode, "difftestMode")
 
   // Hardwired Registers
   val misa_extension = "I"
@@ -293,16 +306,16 @@ class CSRFile extends Module {
 
   val mcounteren = RegInit(UInt(64.W), 0.U)
   val mcause = RegInit(UInt(64.W), 0.U)
-  BoringUtils.addSource(RegNext(mcause), "difftestMcause")
+  BoringUtils.addSource(mcause, "difftestMcause")
   val mtval = RegInit(UInt(64.W), 0.U)
   val mepc = RegInit(UInt(64.W), 0.U)
-  BoringUtils.addSource(RegNext(mepc), "difftestMepc")
+  BoringUtils.addSource(mepc, "difftestMepc")
   val mie = RegInit(UInt(64.W), 0.U)
   val mip = RegInit(UInt(64.W), 0.U)
 
   //  val mip
   val mstatus = RegInit(UInt(64.W), 0x1800.U)
-  BoringUtils.addSource(RegNext(mstatus), "difftestMstatus")
+  BoringUtils.addSource(mstatus, "difftestMstatus")
   val mscratch = RegInit(UInt(64.W), 0.U)
 
   val pmpcfg0 = RegInit(UInt(64.W), 0.U)
@@ -352,26 +365,28 @@ class CSRFile extends Module {
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
     CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
   )
-  val csrWen = Wire(Bool()) // TODO
-  csrWen := true.B
   // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
-  val CSRExists = csrMapping.map(kv => io.csrWrAddr === kv._1.U).reduce(_ | _).asBool()
-  val ReadOnlyCSR = readOnlyCSR.map(io.csrWrAddr === _.U).reduce(_ | _).asBool()
+  val CSRExists = csrMapping.map(kv => io.csrAddr === kv._1).reduce(_ | _).asBool()
+  val ReadOnlyCSR = readOnlyCSR.map(io.csrAddr === _).reduce(_ | _).asBool()
   val CSRFalsePriv = accessCSRPriv > privMode
   val writeCSRAddrLegal = CSRExists & !ReadOnlyCSR & !CSRFalsePriv
   val writeIllegalCSR = !writeCSRAddrLegal & csrWen
-  val readIllegalCSR = (CSRFalsePriv | !CSRExists) & io.csrRen
+  val readIllegalCSR = (CSRFalsePriv | !CSRExists) & csrRen
   dontTouch(writeIllegalCSR)
   dontTouch(readIllegalCSR)
   // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
+  val isCsr_S = io.csrOp === CSR_S || io.csrOp === CSR_SI
+  val isCsr_C = io.csrOp === CSR_C || io.csrOp === CSR_CI
+  val isCsr_W = io.csrOp === CSR_W
   csrMapping.map(kv =>
     if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
-      when(io.csrWrAddr === kv._1.U && csrWen && writeCSRAddrLegal) { // We have no need to consider whether the address is legal
+      when(io.csrAddr === kv._1 && csrWen && writeCSRAddrLegal) { // We have no need to consider whether the address is legal
         // Since we only generate the logic for legal writing
         val newValMasked = WireInit(io.csrWData)
+        val updateVal = (Mux(isCsr_S | isCsr_C, io.csrRdata, 0.U) | io.csrWData) & (~Mux(isCsr_C, io.csrWData, 0.U)).asUInt()
         if (WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked ？
-          newValMasked := maskedWrite(kv._2, io.csrWData, WrMaskedCSR(kv._1))
+          newValMasked := maskedWrite(kv._2, updateVal, WrMaskedCSR(kv._1))
         }
         val newValWithSideEffect = WireInit(newValMasked)
         if (sideEffectCSR.contains(kv._1)) { // Have Side Effect ?
@@ -383,6 +398,9 @@ class CSRFile extends Module {
   )
   // Illegal Instruction
   val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
+  val csrRdata = MuxLookup(io.csrAddr, 0.U, csrMapping)
+  io.csrRdata := csrRdata
+  io.illegalInst := raiseIllegalInstructionException
 }
 
 object CSRFile extends App {

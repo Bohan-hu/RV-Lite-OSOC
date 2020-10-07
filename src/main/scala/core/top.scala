@@ -18,12 +18,7 @@ class Top extends Module {
   val regfile = Module(new Regfile)
   val exceptionRedir = Wire(new ExceptionRedir)
   val csrFile = Module(new CSRFile)
-  // Dummy
-  csrFile.io.csrRdAddr := 0.U
-  csrFile.io.csrWData := 0.U
-  csrFile.io.csrWrAddr := 0.U
-  csrFile.io.csrRen := 0.U
-  //
+
   exceptionRedir.redir := false.B
   exceptionRedir.excePC := 0.U
 
@@ -56,6 +51,9 @@ class Top extends Module {
   wb.io.instBundleIn := mem.io.instBundleOut
   wb.io.mem2Wb := mem.io.mem2Wb
   wb.io.regfileWrite <> regfile.io.wrPort
+
+  // WB <> csr
+  wb.io.csrRw <> csrFile.io
   dmem.io.clk := clock.asBool()
   dmem.io.reset := reset.asBool()
   dmem.io.mem2dmem <> mem.io.mem2dmem

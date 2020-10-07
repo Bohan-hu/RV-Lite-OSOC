@@ -94,8 +94,9 @@ package common {
     val CSR_W = 1.asUInt(3.W)
     val CSR_S = 2.asUInt(3.W)
     val CSR_C = 3.asUInt(3.W)
-    val CSR_I = 4.asUInt(3.W)
-    val CSR_R = 5.asUInt(3.W)
+    val CSR_SI = 4.asUInt(3.W)
+    val CSR_CI = 5.asUInt(3.W)
+    val CSR_I = 6.asUInt(3.W)   // Trp
   }
 
 }
