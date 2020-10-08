@@ -179,6 +179,10 @@ class MEM extends Module {
   io.mem2Wb.RdNum := io.exe2Mem.RdNum
   // passthrough
 
+  // Fake UART
+  when(isMMIO & memWrite &  0x40600000L.U <= io.exe2Mem.aluResult & (0x40600000L+10L).U >= io.exe2Mem.aluResult) {
+    printf("%c", io.exe2Mem.R2val(7,0))
+  }
   // MMIO Flag
   BoringUtils.addSource(RegNext(io.exe2Mem.isMemOp & isMMIO), "difftestIsMMIO")
 }
