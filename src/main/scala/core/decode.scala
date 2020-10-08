@@ -102,35 +102,35 @@ class Decode extends Module {
         BLT    -> List(Y, BR_LT , OP1_RS1, IMM_BTYPE ,  Y   ,  Y   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
         BLTU   -> List(Y, BR_LTU, OP1_RS1, IMM_BTYPE ,  Y   ,  Y   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
 
-        MUL    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MUL    , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        MULH   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULH   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        MULHU  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULHU  , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        MULHSU -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULHSU , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        MULW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULW   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        DIV    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIV    , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        DIVU   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVU   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        REM    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REM    , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        REMU   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMU   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        DIVW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVW   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        DIVUW  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVUW  , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        REMW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMW   , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
-        REMUW  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMUW  , FU_MDU  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        MUL    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MUL    , FU_MUL  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        MULH   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULH   , FU_MUL  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        MULHU  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULHU  , FU_MUL  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        MULHSU -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULHSU , FU_MUL  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        MULW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_MULW   , FU_MUL  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        DIV    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIV    , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        DIVU   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVU   , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        REM    -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REM    , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        REMU   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMU   , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        DIVW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVW   , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        DIVUW  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_DIVUW  , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        REMW   -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMW   , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
+        REMUW  -> List(Y, BR_N  , OP1_RS1, OP2_RS2   ,  Y   ,  Y   , MDU_REMUW  , FU_DIV  ,   N    ,  WB_ALU ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N),
 
-        CSRRWI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_W, N),
-        CSRRSI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_S, N),
-        CSRRW  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_W, N),
-        CSRRS  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_S, N),
-        CSRRC  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_C, N),
-        CSRRCI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_CSR  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_C, N),
-        ECALL  -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
-        MRET   -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
-        URET   -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
-        EBREAK -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
-        WFI    -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N), // implemented as a NOP
+        CSRRWI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_W, N),
+        CSRRSI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_S, N),
+        CSRRW  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_W, N),
+        CSRRS  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_S, N),
+        CSRRC  -> List(Y, BR_N  , OP1_RS1, OP2_X     ,  Y   ,  Y   , ALU_COPY_1 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_C, N),
+        CSRRCI -> List(Y, BR_N  , OP1_X  , IMM_ZEXT  ,  Y   ,  Y   , ALU_COPY_2 , FU_ALU  ,   N    ,  WB_CSR ,  Y   ,  N   , MEM_NOP   , SZ_X  , CSR_C, N),
+        ECALL  -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
+        MRET   -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
+        URET   -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
+        EBREAK -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_I, N),
+        WFI    -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, N), // implemented as a NOP
 
-        FENCE_I-> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, Y),
+        FENCE_I-> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  N   , MEM_NOP   , SZ_X  , CSR_X, Y),
         // kill pipeline and refetch instructions since the pipeline will be holding stall instructions.
-        FENCE  -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_CSR  ,   N    ,  WB_X   ,  N   ,  Y   , MEM_NOP   , SZ_X  , CSR_X, N)
+        FENCE  -> List(Y, BR_N  , OP1_X  , OP2_X     ,  N   ,  N   , ALU_X      , FU_ALU  ,   N    ,  WB_X   ,  N   ,  Y   , MEM_NOP   , SZ_X  , CSR_X, N)
         // we are already sequentially consistent, so no need to honor the fence instruction
     )
   val decode_ops = ListLookup(io.instBundleIn.inst, dummy, decodeops)

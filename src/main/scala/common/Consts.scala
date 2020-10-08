@@ -100,8 +100,8 @@ package common {
 
     val FU_ALU = 0.asUInt(2.W)
     val FU_LSU = 1.asUInt(2.W)
-    val FU_MDU = 2.asUInt(2.W)
-    val FU_CSR = 3.asUInt(3.W)
+    val FU_MUL = 2.asUInt(2.W)
+    val FU_DIV = 3.asUInt(2.W)
 
     val MDU_MUL = 0.asUInt(4.W)
     val MDU_MULH = 1.asUInt(4.W)

@@ -44,15 +44,22 @@ class EXU extends Module {
   alu.io.aluOP := io.decode2Exe.ALUOp
   alu.io.isWordOp := io.decode2Exe.isWordOp
 
-  val mdu = Module(new Multiplier)
-  mdu.io.opA := io.decode2Exe.Op1
-  mdu.io.opB := io.decode2Exe.Op2
-  mdu.io.mduOp := io.decode2Exe.ALUOp
-  mdu.io.opValid := io.decode2Exe.FUType === FU_MDU && io.instBundleIn.instValid
-  io.pauseReq := mdu.io.mulBusy
+  val mulu = Module(new Multiplier)
+  mulu.io.opA := io.decode2Exe.Op1
+  mulu.io.opB := io.decode2Exe.Op2
+  mulu.io.mduOp := io.decode2Exe.ALUOp
+  mulu.io.opValid := io.decode2Exe.FUType === FU_MUL && io.instBundleIn.instValid
+
+  val divu = Module(new Divider)
+  divu.io.opA := io.decode2Exe.Op1
+  divu.io.opB := io.decode2Exe.Op2
+  divu.io.mduOp := io.decode2Exe.ALUOp
+  divu.io.opValid := io.decode2Exe.FUType === FU_DIV && io.instBundleIn.instValid
+  io.pauseReq := divu.io.divBusy || mulu.io.mulBusy
 
   // Pass through
-  io.exe2Mem.aluResult := Mux(io.decode2Exe.FUType === FU_MDU, mdu.io.wbResult, alu.io.out)
+  io.exe2Mem.aluResult := Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult,
+                                Mux(io.decode2Exe.FUType === FU_DIV, divu.io.wbResult, alu.io.out))
   io.exe2Mem.RdNum     := io.decode2Exe.RdNum
   io.exe2Mem.R2val     := io.decode2Exe.R2val
   io.exe2Mem.WBSel     := io.decode2Exe.WBSel
