@@ -27,6 +27,7 @@ class EXUIO extends Bundle {
   val decode2Exe = Input(new Decode2Exe)
   val exe2Mem = Output(new Exe2Mem)
   val exe2IF = Output(new BranchRedir)
+  val pauseReq = Output(Bool())
   val instBundleOut = Output(new InstBundle)
 }
 
@@ -42,8 +43,16 @@ class EXU extends Module {
   alu.io.srcB := io.decode2Exe.Op2
   alu.io.aluOP := io.decode2Exe.ALUOp
   alu.io.isWordOp := io.decode2Exe.isWordOp
+
+  val mdu = Module(new Multiplier)
+  mdu.io.opA := io.decode2Exe.Op1
+  mdu.io.opB := io.decode2Exe.Op2
+  mdu.io.mduOp := io.decode2Exe.ALUOp
+  mdu.io.opValid := io.decode2Exe.FUType === FU_MDU && io.instBundleIn.instValid
+  io.pauseReq := mdu.io.mulBusy
+
   // Pass through
-  io.exe2Mem.aluResult := alu.io.out
+  io.exe2Mem.aluResult := Mux(io.decode2Exe.FUType === FU_MDU, mdu.io.wbResult, alu.io.out)
   io.exe2Mem.RdNum     := io.decode2Exe.RdNum
   io.exe2Mem.R2val     := io.decode2Exe.R2val
   io.exe2Mem.WBSel     := io.decode2Exe.WBSel
@@ -67,6 +76,7 @@ class EXU extends Module {
   io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond) & io.instBundleIn.instValid
   io.exe2IF.TargetPC := Mux(io.decode2Exe.BrType === BR_JR, alu.io.out, io.instBundleIn.inst_pc + io.decode2Exe.Op2)
   io.instBundleOut := io.instBundleIn
+  io.instBundleOut.instValid := (~io.pauseReq) & io.instBundleIn.instValid
 }
 
 object EXU extends App {

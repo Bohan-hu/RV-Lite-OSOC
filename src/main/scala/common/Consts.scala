@@ -97,6 +97,26 @@ package common {
     val CSR_SI = 4.asUInt(3.W)
     val CSR_CI = 5.asUInt(3.W)
     val CSR_I = 6.asUInt(3.W)   // Trp
+
+    val FU_ALU = 0.asUInt(2.W)
+    val FU_LSU = 1.asUInt(2.W)
+    val FU_MDU = 2.asUInt(2.W)
+    val FU_CSR = 3.asUInt(3.W)
+
+    val MDU_MUL = 0.asUInt(4.W)
+    val MDU_MULH = 1.asUInt(4.W)
+    val MDU_MULHS = 2.asUInt(4.W)
+    val MDU_MULHSU = 3.asUInt(4.W)
+    val MDU_MULHU = 4.asUInt(4.W)
+    val MDU_MULW = 5.asUInt(4.W)
+    val MDU_DIV = 6.asUInt(4.W)
+    val MDU_DIVU = 7.asUInt(4.W)
+    val MDU_REM = 8.asUInt(4.W)
+    val MDU_REMU = 9.asUInt(4.W)
+    val MDU_DIVW = 10.asUInt(4.W)
+    val MDU_DIVUW = 11.asUInt(4.W)
+    val MDU_REMW = 12.asUInt(4.W)
+    val MDU_REMUW = 13.asUInt(4.W)
   }
 
 }

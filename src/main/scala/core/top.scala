@@ -25,7 +25,7 @@ class Top extends Module {
   // IMEM < clk
   imem.io.clk := clock.asBool()
   imem.io.reset := reset.asBool()
-  imem.io.pause := mem.io.pauseReq
+  imem.io.pause := mem.io.pauseReq || exu.io.pauseReq
   // IFU <> IMEM
   imem.io.rreq := ifu.io.inst_req
   imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
@@ -33,7 +33,7 @@ class Top extends Module {
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := exceptionRedir
-  ifu.io.pause := mem.io.pauseReq   // Todo: Modify as 5 stage pipeline
+  ifu.io.pause := mem.io.pauseReq || exu.io.pauseReq  // Todo: Modify as 5 stage pipeline
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out
