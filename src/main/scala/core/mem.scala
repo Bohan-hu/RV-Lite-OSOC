@@ -104,7 +104,7 @@ object DataTypesUtils {
           MuxLookup(Addr(2),0.U,
             Array(
               0.U -> Cat(Fill(32, 0.U(1.W)), WData(31,0)),
-              1.U -> Cat(WData(31,0), Fill(32, 0.U(1.W))),
+              1.U -> Cat(WData(31,0), Fill(32, 0.U(1.W)))
             ))
         },
         8.U -> WData
