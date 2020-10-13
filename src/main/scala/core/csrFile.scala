@@ -350,7 +350,7 @@ class CSRFile extends Module {
     CSRAddr.mtval -> mtval,
     CSRAddr.mip -> mip,
     //    CSRAddr.mtinst      ->   mtinst     ,
-    CSRAddr.mtval -> mtval,
+    CSRAddr.mtval -> mtval
   )
   val readOnlyCSR = List(
     CSRAddr.mvendorid,
@@ -360,10 +360,10 @@ class CSRFile extends Module {
   )
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> "hffffffffffffffff".U,
-    CSRAddr.mip -> 0.U, // Cannot be written
+    CSRAddr.mip -> 0.U // Cannot be written
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
-    CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
+    CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) }
   )
   // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR

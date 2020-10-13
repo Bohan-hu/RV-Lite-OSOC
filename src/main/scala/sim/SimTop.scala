@@ -1,3 +1,5 @@
+// build with
+//  mill chiselModule.test.runMain sim.SimTop -td build --output-file Simtop.v 
 package sim
 import core._
 import chisel3._
