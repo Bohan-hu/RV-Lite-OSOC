@@ -13,6 +13,14 @@ class exceptioInfo extends Bundle {
   val pageFault = Bool()
 
 }
+class ExceptionCSR extends Bundle {
+  val redirIF = Output(new ExceptionRedir)
+  val exceptionInfo = Output(new ExceptionInfo)
+  val trapBaseAddr = Input(UInt(64.W))    // Trap Base Addr from *tvec from CSR
+  val epc = Input(UInt(64.W))
+  val exceptionBase = Input(UInt(64.W))
+  val eret = Input(Bool())
+}
 //class exceptions extends Module{
 //  val io = new(exceptionIO)
 //  val mip = UInt(32.W)

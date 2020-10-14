@@ -118,15 +118,19 @@ class PTW extends Module {
             }.otherwise {
               state := sERROR
             }
+            when(io.reqIsStore && !pte.W) { // Is store, but not writable
+              state := sERROR
+            }
             when(!pte.A ||
-              (io.reqIsStore && (!pte.W || !pte.D))) {
+              (io.reqIsStore && !pte.D)) { // pte.a = 0,
+              // or if the memory access is a store and pte.d = 0
               state := sERROR
             }
           }
           // 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
           // exception.
-          when((pteLevel === 1.U && pte.getPPN(17, 0) =/= 0.U) ||
-            (pteLevel === 2.U && pte.getPPN(8, 0) =/= 0.U)) {
+          when((pteLevel === 1.U && Cat(pte.ppn2, pte.ppn1) =/= 0.U) ||
+            (pteLevel === 2.U && pte.ppn1 =/= 0.U)) {
             state := sERROR
             io.respValid := false.B
           }

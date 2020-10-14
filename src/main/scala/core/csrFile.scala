@@ -151,16 +151,6 @@ object CSRAddr {
 
   // =========================== USER MODE BEGIN ===============================.U==
 
-  // User Trap Setup.U
-  val ustatus = 0x000.U
-  val uie = 0x004.U
-  val utvec = 0x005.U
-  // User Trap Handling.U
-  val uscratch = 0x040.U
-  val uepc = 0x041.U
-  val ucause = 0x042.U
-  val utval = 0x043.U
-  val uip = 0x044.U
   // User Counter/Timers.U
   val cycle = 0xc00.U
   val time = 0xc01.U
@@ -200,8 +190,6 @@ object CSRAddr {
   // ============================== SUPERVISOR MODE BEGIN =====================
   // Supervisor Trap Setup.U
   val sstatus = 0x100.U
-  val sedeleg = 0x102.U
-  val sideleg = 0x103.U
   val sie = 0x104.U
   val stvec = 0x105.U
   val scounteren = 0x106.U
@@ -251,6 +239,12 @@ class mtvec_t extends Bundle {
   val MODE = UInt(2.W)
 }
 
+class ExceptionInfo extends Bundle {
+  val cause = UInt(64.W)
+  val tval = UInt(64.W)
+  val epc = UInt(64.W)
+  val valid = Bool()
+}
 
 class CSRIO extends Bundle {
   val instValid = Input(Bool())
@@ -261,6 +255,9 @@ class CSRIO extends Bundle {
   val instRs = Input(UInt(5.W))
   val csrRdata = Output(UInt(64.W))
   val illegalInst = Output(Bool())
+  val exceptionInfo = Input(new ExceptionInfo)
+  val epc = Output(UInt(64.W))
+  val eret = Output(Bool())
 }
 
 class CSRFile extends Module {
@@ -272,13 +269,37 @@ class CSRFile extends Module {
   //             IF the instruction is CSRRW / CSRRWI               else
   val csrRen = io.instValid && ((io.csrOp === CSR_W && io.instRd =/= 0.U) || (io.csrOp =/= CSR_X && io.csrOp =/= CSR_W))
   val csrWen = io.instValid && !(io.csrOp === CSR_X ||
-                ((io.csrOp === CSR_S || io.csrOp === CSR_C) && io.instRs === 0.U) ||
-                ((io.csrOp === CSR_SI || io.csrOp === CSR_CI) && io.csrWData === 0.U))
+    ((io.csrOp === CSR_S || io.csrOp === CSR_C) && io.instRs === 0.U) ||
+    ((io.csrOp === CSR_SI || io.csrOp === CSR_CI) && io.csrWData === 0.U))
 
 
   def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
+
+  // TODO: Didn't Implement UIE and UPIE yet
+  val sstatus_read_mask = WireInit(0.U(64.W)).asTypeOf(new mstatus)
+  sstatus_read_mask.SIE := true.B
+  sstatus_read_mask.SPIE := true.B
+  sstatus_read_mask.SPP := true.B
+  sstatus_read_mask.FS := "b00".U
+  sstatus_read_mask.XS := "b11".U
+  sstatus_read_mask.SUM := true.B
+  sstatus_read_mask.MXR := true.B
+  sstatus_read_mask.SPIE := true.B
+  sstatus_read_mask.UXL := "b11".U
+  sstatus_read_mask.SD := true.B
+  val sstatus_write_mask = WireInit(0.U(64.W)).asTypeOf(new mstatus)
+  sstatus_write_mask.SIE := true.B
+  sstatus_write_mask.SPIE := true.B
+  sstatus_write_mask.SPP := true.B
+  sstatus_write_mask.FS := "b11".U
+  sstatus_write_mask.SUM := true.B
+  sstatus_write_mask.MXR := true.B
+  val mstatus_write_mask = WireInit(0.U(64.W))
+  mstatus_write_mask := "hffffffffffffffff".U
+  mstatus_write_mask.asTypeOf(new mstatus).FS := 0.U
+
 
   val privMode = RegInit(M)
   BoringUtils.addSource(privMode, "difftestMode")
@@ -312,7 +333,6 @@ class CSRFile extends Module {
   BoringUtils.addSource(mepc, "difftestMepc")
   val mie = RegInit(UInt(64.W), 0.U)
   val mip = RegInit(UInt(64.W), 0.U)
-
   //  val mip
   val mstatus = RegInit(UInt(64.W), 0x1800.U)
   BoringUtils.addSource(mstatus, "difftestMstatus")
@@ -326,8 +346,15 @@ class CSRFile extends Module {
   val pmpaddr1 = RegInit(UInt(64.W), 0.U)
   val pmpaddr2 = RegInit(UInt(64.W), 0.U)
   val pmpaddr3 = RegInit(UInt(64.W), 0.U)
-
+  val stvec = RegInit(UInt(64.W), 0.U)
+  val scounteren = RegInit(UInt(64.W), 0.U)
   val csrRdAddr = Wire(UInt(8.W))
+  val sscratch = RegInit(UInt(64.W))
+  val sepc = RegInit(UInt(64.W))
+  val scause = RegInit(UInt(64.W))
+  val stval = RegInit(UInt(64.W))
+  val satp = RegInit(UInt(64.W))
+
   csrRdAddr := DontCare
   val csrMapping = Array(
     CSRAddr.mvendorid -> mvendorid,
@@ -350,7 +377,24 @@ class CSRFile extends Module {
     CSRAddr.mtval -> mtval,
     CSRAddr.mip -> mip,
     //    CSRAddr.mtinst      ->   mtinst     ,
-    CSRAddr.mtval -> mtval
+    CSRAddr.mtval -> mtval,
+    // Supervisor
+    CSRAddr.sstatus -> (mstatus & sstatus_read_mask.asUInt()),
+    CSRAddr.sie -> (mie & !mideleg),
+    CSRAddr.sip -> (mip & mideleg),
+    CSRAddr.stvec -> stvec,
+    CSRAddr.scounteren -> scounteren,
+    CSRAddr.sscratch -> sscratch,
+    CSRAddr.sepc -> sepc,
+    CSRAddr.scause -> scause,
+    CSRAddr.stval -> stval,
+    CSRAddr.satp -> satp
+  )
+  // TODO: Write logic of these "fake" csrs
+  val subsetofMCSR = List( // Subset of M CSR, not really implemented
+    CSRAddr.sstatus,
+    CSRAddr.sie,
+    CSRAddr.sip
   )
   val readOnlyCSR = List(
     CSRAddr.mvendorid,
@@ -359,7 +403,9 @@ class CSRFile extends Module {
     CSRAddr.mhartid
   )
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
-    CSRAddr.mstatus -> "hffffffffffffffff".U,
+    CSRAddr.mstatus -> mstatus_write_mask,
+    CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
+
     CSRAddr.mip -> 0.U // Cannot be written
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
@@ -401,6 +447,81 @@ class CSRFile extends Module {
   val csrRdata = MuxLookup(io.csrAddr, 0.U, csrMapping)
   io.csrRdata := csrRdata
   io.illegalInst := raiseIllegalInstructionException
+
+  // ================== Exception Handler Begins ===================
+  // Trap to which mode?
+  val nextPrivLevel = WireInit(M)
+  // if delegated, trap to S mode
+  when(io.exceptionInfo.cause(63) && mideleg(io.exceptionInfo.cause) // is interrupt
+    || !io.exceptionInfo.cause(63) && medeleg(io.exceptionInfo.cause)) { // is exception
+    nextPrivLevel := Mux(privMode === M, M, S) // if is in S or U mode, will not trap to M mode
+  }
+  // Update the registers
+  val mstatus_new = WireInit(0.U(64.W)).asTypeOf(new mstatus)
+  mstatus_new := mstatus
+  when(io.exceptionInfo.valid) {
+    privMode := nextPrivLevel // Update the priv mode
+    when(nextPrivLevel === M) { // Will trap to M Mode
+      mstatus_new.MIE := false.B
+      mstatus_new.MPIE := mstatus.asTypeOf(new mstatus).MIE
+      mstatus_new.MPP := privMode
+      mstatus := mstatus_new
+      mcause := io.exceptionInfo.cause
+      mepc := io.exceptionInfo.epc
+      mtval := Mux(io.exceptionInfo.cause(63) ||
+        io.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
+        io.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallM.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallS.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallU.U, 0.U, io.exceptionInfo.tval)
+    }.elsewhen(nextPrivLevel === S) { // Will trap to S Mode
+      mstatus_new.SIE := false.B
+      mstatus_new.SPIE := mstatus.asTypeOf(new mstatus).SIE
+      mstatus_new.SPP := privMode(0)
+      scause := io.exceptionInfo.cause
+      sepc := io.exceptionInfo.epc
+      stval := Mux(io.exceptionInfo.cause(63) ||
+        io.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
+        io.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallM.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallS.U ||
+        io.exceptionInfo.cause === ExceptionNo.ecallU.U, 0.U, io.exceptionInfo.tval)
+    }
+  }
+  // ================== Exception Handler Ends ===================
+
+  // TODO:
+  val isMret = Wire(Bool())
+  val isSret = Wire(Bool())
+  io.eret := isMret | isSret
+  // ================== ERET Handler Begins ===================
+  /*
+  When executing an xRET instruction,
+  supposing xPP holds the value y,
+  xIE is set to xPIE;
+  the privilege mode is changed to y;
+  xPIE is set to 1; and xPP is set to U
+   */
+  io.epc := 0.U
+  when(isMret) {
+    mstatus_new.MIE := mstatus.asTypeOf(new mstatus).MPIE
+    mstatus_new.MPP := U
+    mstatus_new.MPIE := true.B
+    mstatus := mstatus_new
+    privMode := mstatus.asTypeOf(new mstatus).MPP
+    io.epc := mepc
+    // TODO: io.exceptionBase =
+  }.elsewhen(isSret) {
+    mstatus_new.SIE := mstatus.asTypeOf(new mstatus).SPIE
+    mstatus_new.SPP := 0.U
+    mstatus_new.SPIE := true.B
+    mstatus := mstatus_new
+    privMode := Cat(0.U(1.W), mstatus.asTypeOf(new mstatus).SPP)
+    io.epc := sepc
+    // TODO: io.exceptionBase =
+  }
+  // ================== ERET Handler Ends ===================
+
 }
 
 object CSRFile extends App {
