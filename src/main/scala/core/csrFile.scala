@@ -256,8 +256,23 @@ class CSRIO extends Bundle {
   val csrRdata = Output(UInt(64.W))
   val illegalInst = Output(Bool())
   val exceptionInfo = Input(new ExceptionInfo)
+  // To IF, if is eret, go to epc
   val epc = Output(UInt(64.W))
   val eret = Output(Bool())
+  // To IF, determined by the mode
+  val handlerEntry = Output(UInt(64.W))
+  // To MMU
+  val satpPPN = Output(UInt())
+  val asid = Output(UInt())
+  val sum = Output(Bool())
+  val enableSv39 = Output(Bool())
+  val enableLSVM = Output(Bool())
+
+  val mxr = Output(Bool())
+  val tvm = Output(Bool())
+  val tw = Output(Bool())
+  val tsr = Output(Bool())
+
 }
 
 class CSRFile extends Module {
@@ -370,18 +385,18 @@ class CSRFile extends Module {
     CSRAddr.mie -> mie,
     CSRAddr.mtvec -> mtvec,
     CSRAddr.mcounteren -> mcounteren,
-    //    // Machine Trap Handling
+    //Machine Trap Handling
     CSRAddr.mscratch -> mscratch,
     CSRAddr.mepc -> mepc,
     CSRAddr.mcause -> mcause,
     CSRAddr.mtval -> mtval,
     CSRAddr.mip -> mip,
-    //    CSRAddr.mtinst      ->   mtinst     ,
+    //CSRAddr.mtinst      ->   mtinst     ,
     CSRAddr.mtval -> mtval,
     // Supervisor
-    CSRAddr.sstatus -> (mstatus & sstatus_read_mask.asUInt()),
-    CSRAddr.sie -> (mie & !mideleg),
-    CSRAddr.sip -> (mip & mideleg),
+    CSRAddr.sstatus -> mstatus, // To be handled soon
+    CSRAddr.sie -> mie, // To be handled soon
+    CSRAddr.sip -> mip, // To be handled soon
     CSRAddr.stvec -> stvec,
     CSRAddr.scounteren -> scounteren,
     CSRAddr.sscratch -> sscratch,
@@ -390,27 +405,51 @@ class CSRFile extends Module {
     CSRAddr.stval -> stval,
     CSRAddr.satp -> satp
   )
-  // TODO: Write logic of these "fake" csrs
-  val subsetofMCSR = List( // Subset of M CSR, not really implemented
-    CSRAddr.sstatus,
-    CSRAddr.sie,
-    CSRAddr.sip
-  )
+  // CSR Read Data
+  val csrRdata = MuxLookup(io.csrAddr, 0.U, csrMapping)
+  io.csrRdata := csrRdata
+  // Some S mode registers read is masked
+  when(csrRdAddr === CSRAddr.sstatus) {
+    io.csrRdata := csrRdata & sstatus_read_mask.asUInt()
+  }.elsewhen(csrRdAddr === CSRAddr.sie) {
+    io.csrRdata := csrRdata & mideleg
+  }.elsewhen(csrRdAddr === CSRAddr.sip) {
+    io.csrRdata := csrRdata & mideleg
+  }
+
   val readOnlyCSR = List(
-    CSRAddr.mvendorid,
-    CSRAddr.marchid,
-    CSRAddr.mimpid,
-    CSRAddr.mhartid
+    //    CSRAddr.mvendorid,
+    //    CSRAddr.marchid,
+    //    CSRAddr.mimpid,
+    //    CSRAddr.mhartid
   )
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
+    CSRAddr.mip -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // TODO?
+    CSRAddr.mideleg -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // SSIP, SEIP, STIP
+    CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
+    CSRAddr.misa -> 0.U,
+    CSRAddr.medeleg ->  ((1.U << ExceptionNo.instrAddrMisaligned ) |
+                        (1.U << ExceptionNo.breakPoint) |
+                        (1.U << ExceptionNo.ecallU) |
+                        (1.U << ExceptionNo.instrPageFault) |
+                        (1.U << ExceptionNo.loadPageFault)  |
+                        (1.U << ExceptionNo.storePageFault) ),
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
+    CSRAddr.sie -> mideleg,
+    CSRAddr.sip -> (mideleg & (1.U << 1).asUInt()).asUInt(),
+    CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
+    CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
-    CSRAddr.mip -> 0.U // Cannot be written
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
-    CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) }
+    CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
+    CSRAddr.satp -> { oldValue: UInt => Mux(oldValue(63, 60) === 8.U, oldValue, Cat(0.U(4.W), oldValue(59, 0))) } // We only support SV39 and Bare
   )
+  // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
+  val isCsr_S = io.csrOp === CSR_S || io.csrOp === CSR_SI
+  val isCsr_C = io.csrOp === CSR_C || io.csrOp === CSR_CI
+  val isCsr_W = io.csrOp === CSR_W
   // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
   val CSRExists = csrMapping.map(kv => io.csrAddr === kv._1).reduce(_ | _).asBool()
@@ -419,12 +458,6 @@ class CSRFile extends Module {
   val writeCSRAddrLegal = CSRExists & !ReadOnlyCSR & !CSRFalsePriv
   val writeIllegalCSR = !writeCSRAddrLegal & csrWen
   val readIllegalCSR = (CSRFalsePriv | !CSRExists) & csrRen
-  dontTouch(writeIllegalCSR)
-  dontTouch(readIllegalCSR)
-  // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
-  val isCsr_S = io.csrOp === CSR_S || io.csrOp === CSR_SI
-  val isCsr_C = io.csrOp === CSR_C || io.csrOp === CSR_CI
-  val isCsr_W = io.csrOp === CSR_W
   csrMapping.map(kv =>
     if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
       when(io.csrAddr === kv._1 && csrWen && writeCSRAddrLegal) { // We have no need to consider whether the address is legal
@@ -444,8 +477,8 @@ class CSRFile extends Module {
   )
   // Illegal Instruction
   val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
-  val csrRdata = MuxLookup(io.csrAddr, 0.U, csrMapping)
-  io.csrRdata := csrRdata
+
+
   io.illegalInst := raiseIllegalInstructionException
 
   // ================== Exception Handler Begins ===================
@@ -510,7 +543,6 @@ class CSRFile extends Module {
     mstatus := mstatus_new
     privMode := mstatus.asTypeOf(new mstatus).MPP
     io.epc := mepc
-    // TODO: io.exceptionBase =
   }.elsewhen(isSret) {
     mstatus_new.SIE := mstatus.asTypeOf(new mstatus).SPIE
     mstatus_new.SPP := 0.U
@@ -518,9 +550,24 @@ class CSRFile extends Module {
     mstatus := mstatus_new
     privMode := Cat(0.U(1.W), mstatus.asTypeOf(new mstatus).SPP)
     io.epc := sepc
-    // TODO: io.exceptionBase =
   }
   // ================== ERET Handler Ends ===================
+
+  // ================== Exception Handler Entry Begins ===================
+  val handlerBase = Wire(UInt(64.W))
+  handlerBase := Cat(mtvec(63, 2), 0.U(2.W))
+  when(privMode === S) {
+    handlerBase := Cat(stvec(63, 2), 0.U(2.W))
+  }
+  io.handlerEntry := handlerBase
+  when(mtvec(0) || stvec(0)) {
+    io.handlerEntry := Cat(handlerBase(63, 8), io.exceptionInfo.cause(5, 0), 0.U(2.W))
+  }
+
+  // ================== Exception Handler Entry Ends ===================
+
+  // Decide whether to enable the Sv39
+  io.enableSv39 := (privMode =/= M || satp(63, 60) === 8.U)
 
 }
 
