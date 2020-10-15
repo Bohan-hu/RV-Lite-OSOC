@@ -31,7 +31,7 @@ class PTWIO extends Bundle {
   // ptw active ???
   val flush = Input(Bool())
   val busy = Output(Bool()) // PTW Busy
-  val translation_global_en = Input(Bool()) // Enable All tranlation
+  val enableSv39 = Input(Bool()) // Enable All tranlation
   val translation_ls_en = Input(Bool()) // Enable Load/Store translation
   // Request
   val reqVAddr = Input(UInt(64.W))
@@ -63,7 +63,7 @@ class PTWIO extends Bundle {
 
 class PTW extends Module {
   val io = IO(new PTWIO)
-  val sIDLE :: sWAIT_PTE_Entry :: sHANDLE_PTE_Entry :: sERROR :: sWAIT_AFTER_FLUSH :: Nil = Enum(4)
+  val sIDLE :: sWAIT_PTE_Entry :: sHANDLE_PTE_Entry :: sERROR :: sWAIT_AFTER_FLUSH :: Nil = Enum(5)
   val pteLevelReg = Reg(UInt(2.W))
   val stateReg = Reg(UInt())
   val ptrReg = Reg(UInt(64.W))
@@ -78,11 +78,11 @@ class PTW extends Module {
     is(sIDLE) {
       pteLevelReg := 1.U
       // Data request has higher priority
-      when(io.translation_global_en && io.translation_ls_en && io.reqReady && !io.reqIsInstr && !io.dTlbQuery.hit) {
+      when(io.enableSv39 && io.translation_ls_en && io.reqReady && !io.reqIsInstr && !io.dTlbQuery.hit) {
         stateReg := sWAIT_PTE_Entry
         isITLBReg := false.B
         ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
-      }.elsewhen(io.translation_global_en && io.reqReady && io.reqIsInstr && !io.iTlbQuery.hit) { // Instruction Request
+      }.elsewhen(io.enableSv39 && io.reqReady && io.reqIsInstr && !io.iTlbQuery.hit) { // Instruction Request
         stateReg := sWAIT_PTE_Entry
         isITLBReg := true.B
         ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
@@ -90,12 +90,19 @@ class PTW extends Module {
     }
     is(sWAIT_PTE_Entry) {
       io.memReq.rreq := true.B
+      when(io.flush) {
+        stateReg := sWAIT_AFTER_FLUSH
+      }
       when(io.memReq.rvalid) {
         stateReg := sHANDLE_PTE_Entry
         pteReg := io.memReq.rdata.asTypeOf(new PTE)
       }
     }
     is(sHANDLE_PTE_Entry) {
+      when(io.flush) {
+        stateReg := sIDLE
+        pteLevelReg := 1.U
+      }
       when(pteReg.G) {
         isGlobalMappingReg := true.B
       }
@@ -148,21 +155,27 @@ class PTW extends Module {
             stateReg := sERROR
             io.respValid := false.B
           }
-        }.otherwise {     // the PTE is a pointer to the next level of the page table
+        }.otherwise { // the PTE is a pointer to the next level of the page table
           stateReg := sWAIT_PTE_Entry
           when(pteLevelReg === 1.U) {
             pteLevelReg := 2.U
-            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(29, 21), 0.U(3.W))     // VPN 1
+            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(29, 21), 0.U(3.W)) // VPN 1
           }
           when(pteLevelReg === 2.U) {
             pteLevelReg := 3.U
-            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(20, 12), 0.U(3.W))     // VPN 2
+            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(20, 12), 0.U(3.W)) // VPN 2
           }
           when(pteLevelReg === 3.U) { // Should be a fault
             pteLevelReg := 3.U
             stateReg := sERROR
           }
         }
+      }
+    }
+    is(sWAIT_AFTER_FLUSH) { // Recover from a flush
+      when(io.memReq.rvalid) {
+        stateReg := sIDLE
+        pteLevelReg := 1.U
       }
     }
     is(sERROR) {
