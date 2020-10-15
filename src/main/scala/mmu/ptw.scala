@@ -42,7 +42,7 @@ class PTWIO extends Bundle {
   val respPaddr = Output(UInt(64.W))
   val respValid = Output(Bool())
   val pageFault = Output(Bool())
-
+  val isInstrPgFault = Output(Bool())
   // From CSR
   val satp_ASID = Input(UInt(16.W))
   val satp_PPN = Input(UInt(44.W))
@@ -64,92 +64,112 @@ class PTWIO extends Bundle {
 class PTW extends Module {
   val io = IO(new PTWIO)
   val sIDLE :: sWAIT_PTE_Entry :: sHANDLE_PTE_Entry :: sERROR :: sWAIT_AFTER_FLUSH :: Nil = Enum(4)
-  val pteLevel = Reg(UInt(2.W))
-  val state = Reg(UInt())
-  val ptr = Reg(UInt(64.W))
-  val isITLB = Reg(Bool())
-  val isGlobalMapping = Reg(Bool())
-  val pte = Reg(UInt(64.W)).asTypeOf(new PTE)
+  val pteLevelReg = Reg(UInt(2.W))
+  val stateReg = Reg(UInt())
+  val ptrReg = Reg(UInt(64.W))
+  val isITLBReg = Reg(Bool())
+  val isGlobalMappingReg = Reg(Bool())
+  val pteReg = Reg(UInt(64.W)).asTypeOf(new PTE)
   io.respValid := false.B
   io.memReq.rreq := false.B
-  switch(state) {
+  // If TLB hit, stay in IDLE mode
+  // Also need to consider whether the Sv39 translation is enabled
+  switch(stateReg) {
     is(sIDLE) {
-      pteLevel := 1.U
-      when(io.translation_global_en && io.reqReady && io.reqIsInstr && !io.iTlbQuery.hit) { // Instruction Request
-        state := sWAIT_PTE_Entry
-        isITLB := true.B
-        ptr := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
-      }.elsewhen(io.translation_global_en && io.translation_ls_en && io.reqReady && !io.reqIsInstr && !io.dTlbQuery.hit) {
-        state := sWAIT_PTE_Entry
-        isITLB := false.B
-        ptr := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
+      pteLevelReg := 1.U
+      // Data request has higher priority
+      when(io.translation_global_en && io.translation_ls_en && io.reqReady && !io.reqIsInstr && !io.dTlbQuery.hit) {
+        stateReg := sWAIT_PTE_Entry
+        isITLBReg := false.B
+        ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
+      }.elsewhen(io.translation_global_en && io.reqReady && io.reqIsInstr && !io.iTlbQuery.hit) { // Instruction Request
+        stateReg := sWAIT_PTE_Entry
+        isITLBReg := true.B
+        ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
       }
     }
     is(sWAIT_PTE_Entry) {
       io.memReq.rreq := true.B
       when(io.memReq.rvalid) {
-        state := sHANDLE_PTE_Entry
-        pte := io.memReq.rdata.asTypeOf(new PTE)
+        stateReg := sHANDLE_PTE_Entry
+        pteReg := io.memReq.rdata.asTypeOf(new PTE)
       }
     }
     is(sHANDLE_PTE_Entry) {
-      when(pte.G) {
-        isGlobalMapping := true.B
+      when(pteReg.G) {
+        isGlobalMappingReg := true.B
       }
-      when(!pte.V || (!pte.R && pte.W)) { // Page Fault
-        state := sERROR
+      /* If PTE.v = 0, or PTE.r = 0 and PTE.w = 1,
+         Stop and raise a page-fault exception corresponding to the original access type
+      */
+      when(!pteReg.V || (!pteReg.R && pteReg.W)) {
+        stateReg := sERROR
       }.otherwise {
-        when(pte.R || pte.X) { // The Leaf PTE
-          /* TODO:
+        when(pteReg.R || pteReg.X) { // If pte.r = 1 or pte.x = 1
+          /*
           A leaf PTE has been found.
           Determine if the requested memory access is allowed by the pte.r, pte.w, pte.x, and pte.u bits,
           given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
           If not, stop and raise a page-fault exception corresponding to the original access type.
           */
           when(io.reqIsInstr) { // Instruction Translation
-            when(!pte.X || !pte.A) { // Instr, not eXecutable
-              state := sERROR
+            /*
+            Attempting to fetch an instruction from a page that does not have execute permissions
+            raises a fetch page-fault exception
+             */
+            when(!pteReg.X || !pteReg.A) { // Instr, not eXecutable
+              stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
+              stateReg := sIDLE
+              pteLevelReg := 1.U
             }
           }.otherwise { // Data
-            when(pte.A && (pte.R || (pte.X && io.mxr))) {
+            when(pteReg.A && (pteReg.R || (pteReg.X && io.mxr))) {
+              stateReg := sIDLE
               io.respValid := true.B
+              pteLevelReg := 1.U
             }.otherwise {
-              state := sERROR
+              stateReg := sERROR
             }
-            when(io.reqIsStore && !pte.W) { // Is store, but not writable
-              state := sERROR
+            when(io.reqIsStore && !pteReg.W) { // Is store, but not writable
+              stateReg := sERROR
             }
-            when(!pte.A ||
-              (io.reqIsStore && !pte.D)) { // pte.a = 0,
+            when(!pteReg.A ||
+              (io.reqIsStore && !pteReg.D)) { // pte.a = 0,
               // or if the memory access is a store and pte.d = 0
-              state := sERROR
+              stateReg := sERROR
             }
           }
           // 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
           // exception.
-          when((pteLevel === 1.U && Cat(pte.ppn2, pte.ppn1) =/= 0.U) ||
-            (pteLevel === 2.U && pte.ppn1 =/= 0.U)) {
-            state := sERROR
+          when((pteLevelReg === 1.U && Cat(pteReg.ppn2, pteReg.ppn1) =/= 0.U) ||
+            (pteLevelReg === 2.U && pteReg.ppn1 =/= 0.U)) {
+            stateReg := sERROR
             io.respValid := false.B
           }
-        }.otherwise {
-          state := sWAIT_PTE_Entry
-          when(pteLevel === 1.U) {
-            pteLevel := 2.U
-            ptr := Cat(pte.getPPN, io.reqVAddr(29, 21), 0.U(3.W))
+        }.otherwise {     // the PTE is a pointer to the next level of the page table
+          stateReg := sWAIT_PTE_Entry
+          when(pteLevelReg === 1.U) {
+            pteLevelReg := 2.U
+            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(29, 21), 0.U(3.W))     // VPN 1
           }
-          when(pteLevel === 2.U) {
-            pteLevel := 3.U
-            ptr := Cat(pte.getPPN, io.reqVAddr(20, 12), 0.U(3.W))
+          when(pteLevelReg === 2.U) {
+            pteLevelReg := 3.U
+            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(20, 12), 0.U(3.W))     // VPN 2
           }
-          when(pteLevel === 3.U) { // Should be a fault
-            pteLevel := 3.U
-            state := sERROR
+          when(pteLevelReg === 3.U) { // Should be a fault
+            pteLevelReg := 3.U
+            stateReg := sERROR
           }
         }
       }
+    }
+    is(sERROR) {
+      io.pageFault := true.B
+      io.isInstrPgFault := isITLBReg
+      stateReg := sIDLE
+      pteLevelReg := 1.U
     }
   }
 }
