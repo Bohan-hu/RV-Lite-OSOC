@@ -17,6 +17,10 @@ class TLBQuery extends Bundle {
   val paddr = Output(UInt(64.W))
 }
 //
-class tlb {
-
+class TLB extends Module{
+  val io = IO(new Bundle() {
+    val tlbUpdate = new TLBUpdate
+    val tlbQuery = new TLBQuery
+  })
+  io.tlbQuery.hit := false.B
 }

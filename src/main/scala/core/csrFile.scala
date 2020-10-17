@@ -36,7 +36,7 @@ object ExceptionNo {
   def storePageFault = 15
 
   val ExcePriority = Seq(
-    breakPoint, // TODO: different BP has different priority
+    breakPoint,
     instrPageFault,
     instrAccessFault,
     illegalInstr,
@@ -364,11 +364,11 @@ class CSRFile extends Module {
   val stvec = RegInit(UInt(64.W), 0.U)
   val scounteren = RegInit(UInt(64.W), 0.U)
   val csrRdAddr = Wire(UInt(8.W))
-  val sscratch = RegInit(UInt(64.W))
-  val sepc = RegInit(UInt(64.W))
-  val scause = RegInit(UInt(64.W))
-  val stval = RegInit(UInt(64.W))
-  val satp = RegInit(UInt(64.W))
+  val sscratch = RegInit(UInt(64.W), 0.U)
+  val sepc = RegInit(UInt(64.W), 0.U)
+  val scause = RegInit(UInt(64.W), 0.U)
+  val stval = RegInit(UInt(64.W), 0.U)
+  val satp = RegInit(UInt(64.W), 0.U)
 
   csrRdAddr := DontCare
   val csrMapping = Array(
@@ -417,24 +417,18 @@ class CSRFile extends Module {
     io.csrRdata := csrRdata & mideleg
   }
 
-  val readOnlyCSR = List(
-    //    CSRAddr.mvendorid,
-    //    CSRAddr.marchid,
-    //    CSRAddr.mimpid,
-    //    CSRAddr.mhartid
-  )
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
     CSRAddr.mip -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // TODO?
     CSRAddr.mideleg -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.misa -> 0.U,
-    CSRAddr.medeleg ->  ((1.U << ExceptionNo.instrAddrMisaligned ) |
-                        (1.U << ExceptionNo.breakPoint) |
-                        (1.U << ExceptionNo.ecallU) |
-                        (1.U << ExceptionNo.instrPageFault) |
-                        (1.U << ExceptionNo.loadPageFault)  |
-                        (1.U << ExceptionNo.storePageFault) ),
+    CSRAddr.medeleg -> ((1.U << ExceptionNo.instrAddrMisaligned) |
+      (1.U << ExceptionNo.breakPoint) |
+      (1.U << ExceptionNo.ecallU) |
+      (1.U << ExceptionNo.instrPageFault) |
+      (1.U << ExceptionNo.loadPageFault) |
+      (1.U << ExceptionNo.storePageFault)),
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
     CSRAddr.sie -> mideleg,
     CSRAddr.sip -> (mideleg & (1.U << 1).asUInt()).asUInt(),
@@ -453,32 +447,33 @@ class CSRFile extends Module {
   // If write to CSR, should consider whether the address is legal
   // Writing to a read-only CSR will cause an illegal instruction exception, or writing to an unimplemented CSR
   val CSRExists = csrMapping.map(kv => io.csrAddr === kv._1).reduce(_ | _).asBool()
-  val ReadOnlyCSR = readOnlyCSR.map(io.csrAddr === _).reduce(_ | _).asBool()
+  val ReadOnlyCSR = io.csrAddr(11, 10) === "b11".U
   val CSRFalsePriv = accessCSRPriv > privMode
-  val writeCSRAddrLegal = CSRExists & !ReadOnlyCSR & !CSRFalsePriv
-  val writeIllegalCSR = !writeCSRAddrLegal & csrWen
-  val readIllegalCSR = (CSRFalsePriv | !CSRExists) & csrRen
+  // Legal stands for CSR exists and the priv is right
+  val CSRAddrLegal = CSRExists & !CSRFalsePriv
+  //                      Address is legal  |                           is in S-Mode but TVM is enabled
+  val writeIllegalCSR = csrWen & (!CSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.csrAddr === CSRAddr.satp) |
+    ReadOnlyCSR)
+  val readIllegalCSR = csrRen & (!CSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.csrAddr === CSRAddr.satp))
   csrMapping.map(kv =>
-    if (!readOnlyCSR.contains(kv._1)) { // CSR is Not READ Only
-      when(io.csrAddr === kv._1 && csrWen && writeCSRAddrLegal) { // We have no need to consider whether the address is legal
-        // Since we only generate the logic for legal writing
-        val newValMasked = WireInit(io.csrWData)
-        val updateVal = (Mux(isCsr_S | isCsr_C, io.csrRdata, 0.U) | io.csrWData) & (~Mux(isCsr_C, io.csrWData, 0.U)).asUInt()
-        if (WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked ？
-          newValMasked := maskedWrite(kv._2, updateVal, WrMaskedCSR(kv._1))
-        }
-        val newValWithSideEffect = WireInit(newValMasked)
-        if (sideEffectCSR.contains(kv._1)) { // Have Side Effect ?
-          newValWithSideEffect := sideEffectCSR(kv._1)(newValMasked)
-        }
-        kv._2 := newValWithSideEffect
+    when(io.csrAddr === kv._1 && csrWen && CSRAddrLegal) { // We have no need to consider whether the address is legal
+      // Since we only generate the logic for legal writing
+      val newValMasked = WireInit(io.csrWData)
+      val updateVal = (Mux(isCsr_S | isCsr_C, io.csrRdata, 0.U) | io.csrWData) & (~Mux(isCsr_C, io.csrWData, 0.U)).asUInt()
+      if (WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked ？
+        newValMasked := maskedWrite(kv._2, updateVal, WrMaskedCSR(kv._1))
       }
+      val newValWithSideEffect = WireInit(newValMasked)
+      if (sideEffectCSR.contains(kv._1)) { // Have Side Effect ?
+        newValWithSideEffect := sideEffectCSR(kv._1)(newValMasked)
+      }
+      kv._2 := newValWithSideEffect
     }
   )
   // Illegal Instruction
   val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
-
-
   io.illegalInst := raiseIllegalInstructionException
 
   // ================== Exception Handler Begins ===================
@@ -491,14 +486,14 @@ class CSRFile extends Module {
   }
   // Update the registers
   val mstatus_new = WireInit(0.U(64.W)).asTypeOf(new mstatus)
-  mstatus_new := mstatus
+  mstatus_new := mstatus.asTypeOf(new mstatus)
   when(io.exceptionInfo.valid) {
     privMode := nextPrivLevel // Update the priv mode
     when(nextPrivLevel === M) { // Will trap to M Mode
       mstatus_new.MIE := false.B
       mstatus_new.MPIE := mstatus.asTypeOf(new mstatus).MIE
       mstatus_new.MPP := privMode
-      mstatus := mstatus_new
+      mstatus := mstatus_new.asUInt()
       mcause := io.exceptionInfo.cause
       mepc := io.exceptionInfo.epc
       mtval := Mux(io.exceptionInfo.cause(63) ||
@@ -540,14 +535,14 @@ class CSRFile extends Module {
     mstatus_new.MIE := mstatus.asTypeOf(new mstatus).MPIE
     mstatus_new.MPP := U
     mstatus_new.MPIE := true.B
-    mstatus := mstatus_new
+    mstatus := mstatus_new.asUInt()
     privMode := mstatus.asTypeOf(new mstatus).MPP
     io.epc := mepc
   }.elsewhen(isSret) {
     mstatus_new.SIE := mstatus.asTypeOf(new mstatus).SPIE
     mstatus_new.SPP := 0.U
     mstatus_new.SPIE := true.B
-    mstatus := mstatus_new
+    mstatus := mstatus_new.asUInt()
     privMode := Cat(0.U(1.W), mstatus.asTypeOf(new mstatus).SPP)
     io.epc := sepc
   }
