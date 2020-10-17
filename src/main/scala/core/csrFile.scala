@@ -6,6 +6,15 @@ import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
 import common.OpConstants._
 
+object IntNo {
+  val MEI = 11
+  val SEI = 9
+  val MTI = 7
+  val STI = 5
+  val MSI = 3
+  val SSI = 1
+}
+
 object ExceptionNo {
   def instrAddrMisaligned = 0
 
@@ -246,6 +255,25 @@ class ExceptionInfo extends Bundle {
   val valid = Bool()
 }
 
+class PLICCSR extends Bundle {
+  val intrVec = UInt(3.W)       // TODO: Should be defined by parameter
+  val meip = Bool()
+}
+
+class CLINTCSR extends Bundle {
+  val mtip = Bool()
+  val msip = Bool()
+}
+
+class INTCtrl extends Bundle {
+  val privMode = UInt(2.W)
+  val mie = UInt(64.W)
+  val mip = UInt(64.W)
+  val mideleg = UInt(64.W)
+  val sie = Bool()
+  val intGlobalEnable = Bool()
+}
+
 class CSRIO extends Bundle {
   val instValid = Input(Bool())
   val csrWData = Input(UInt(64.W))
@@ -273,6 +301,8 @@ class CSRIO extends Bundle {
   val tw = Output(Bool())
   val tsr = Output(Bool())
 
+  // To decoder, let decoder handle the interrupt
+  val intCtrl = Output(new INTCtrl)
 }
 
 class CSRFile extends Module {
@@ -518,7 +548,7 @@ class CSRFile extends Module {
   }
   // ================== Exception Handler Ends ===================
 
-  // TODO:
+  // TODO: Consider MPRV Bit
   val isMret = Wire(Bool())
   val isSret = Wire(Bool())
   io.eret := isMret | isSret
@@ -564,6 +594,16 @@ class CSRFile extends Module {
   // Decide whether to enable the Sv39
   io.enableSv39 := (privMode =/= M || satp(63, 60) === 8.U)
 
+
+  // To Decoder
+  io.intCtrl.mie := mie
+  io.intCtrl.mip := mip
+  io.intCtrl.sie := mstatus.asTypeOf(new mstatus).SIE
+  io.intCtrl.mideleg := mideleg
+  //  The Machine mode interrupt is globally enabled iff 1. In M mode, see Mstatus.MIE | 2. Not in M mode, enabled
+  // If we are in M mode, we should should consider the MIE, but if we are not in M mode, interrupts are considered to
+  // be globally enabled
+  io.intCtrl.intGlobalEnable := (mstatus.asTypeOf(new mstatus).MIE & privMode === M) | (privMode =/= M)
 }
 
 object CSRFile extends App {
