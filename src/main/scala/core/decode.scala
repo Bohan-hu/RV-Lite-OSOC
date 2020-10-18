@@ -222,11 +222,16 @@ class Decode extends Module {
     // ================= Handle ECALL and EBREAK ends ===================
     // If the instruction did not throw any exception in IF, we can attach the interrupt on this instruction
     // the interrupt is order by priority, highest last
+    // We need a cause int signal to show whether the corresponding int is enabled
+    val causeInt = Bool()
+    causeInt := false.B
     when(MipAndMie(IntNo.STI)) {
       exceptionInfo.cause := makeInt(IntNo.STI)
+      causeInt := true.B
     }
     when(MipAndMie(IntNo.SSI)) {
       exceptionInfo.cause := makeInt(IntNo.SSI)
+      causeInt := true.B
     }
     /*
     the platform-level interrupt controller may generate supervisor-level external interrupts.
@@ -235,22 +240,26 @@ class Decode extends Module {
      */
     when((io.intCtrl.mip(IntNo.SEI) | io.PLIC_SEI) && io.intCtrl.mie(IntNo.SEI)) {
       exceptionInfo.cause := makeInt(IntNo.SEI)
+      causeInt := true.B
     }
     when(MipAndMie(IntNo.MTI)) {
       exceptionInfo.cause := makeInt(IntNo.MTI)
+      causeInt := true.B
     }
     when(MipAndMie(IntNo.MSI)) {
       exceptionInfo.cause := makeInt(IntNo.MSI)
+      causeInt := true.B
     }
     when(MipAndMie(IntNo.MEI)) {
       exceptionInfo.cause := makeInt(IntNo.MEI)
+      causeInt := true.B
     }
     // Until here, the value of exceptionInfo.cause has been the cause with the highest priority
     // If we are in M mode, the S INT is disabled (unless is delegated)
     // If we are in S mode,
     // If M mode interrupts are disabled and we are in S mode,
-    when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable) { // If is interrupt, we need to consider whether the interrupt can be taken
-      when(io.intCtrl.mideleg(exceptionInfo.cause(62, 0))
+    when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt) { // If is interrupt, we need to consider whether the interrupt can be taken
+      when(io.intCtrl.mideleg(exceptionInfo.cause(62, 0))        // If SxI is delegated
         && ((io.intCtrl.sie && io.intCtrl.privMode === S) || io.intCtrl.privMode === U)) { // If is delegated to S mode
         exceptionInfo.valid := true.B
       }.otherwise {

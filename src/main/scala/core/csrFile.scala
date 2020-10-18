@@ -369,6 +369,13 @@ class CSRFile extends Module {
   val medeleg = RegInit(UInt(64.W), 0.U) // Machine Exception Delegation Register
   val mideleg = RegInit(UInt(64.W), 0.U) // Machine Interrupt Delegation Register
   val medelgAndMask = 1.U << 11 // medelg[11] is hardwired to zero
+  val midelegMask = WireInit(UInt(64.W),
+    ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI))
+  )
+  // Spec P77, SEIP , STIP is read-only, and SSIP is writable
+  val sipMask = WireInit(UInt(64.W),
+    (1.U << IntNo.SSI)
+  )
 
   val mcounteren = RegInit(UInt(64.W), 0.U)
   val mcause = RegInit(UInt(64.W), 0.U)
@@ -449,8 +456,8 @@ class CSRFile extends Module {
 
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
-    CSRAddr.mip -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // TODO?
-    CSRAddr.mideleg -> ((1.U << 1) | (1.U << 5) | (1.U << 9)), // SSIP, SEIP, STIP
+    CSRAddr.mip -> midelegMask, // TODO?
+    CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.misa -> 0.U,
     CSRAddr.medeleg -> ((1.U << ExceptionNo.instrAddrMisaligned) |
@@ -460,8 +467,8 @@ class CSRFile extends Module {
       (1.U << ExceptionNo.loadPageFault) |
       (1.U << ExceptionNo.storePageFault)),
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
-    CSRAddr.sie -> mideleg,
-    CSRAddr.sip -> (mideleg & (1.U << 1).asUInt()).asUInt(),
+    CSRAddr.sie -> midelegMask,
+    CSRAddr.sip -> sipMask,
     CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
     CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
