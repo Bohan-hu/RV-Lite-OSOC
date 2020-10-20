@@ -223,7 +223,7 @@ class Decode extends Module {
     // If the instruction did not throw any exception in IF, we can attach the interrupt on this instruction
     // the interrupt is order by priority, highest last
     // We need a cause int signal to show whether the corresponding int is enabled
-    val causeInt = Bool()
+    val causeInt = Wire(Bool())
     causeInt := false.B
     when(MipAndMie(IntNo.STI)) {
       exceptionInfo.cause := makeInt(IntNo.STI)
