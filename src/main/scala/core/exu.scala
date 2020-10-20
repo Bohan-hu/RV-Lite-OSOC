@@ -15,6 +15,7 @@ class Exe2Mem extends Bundle {
   val MemType = UInt(3.W)
   val CSRCmd = UInt(3.W)
   val isFence = Bool()
+  val exceInfo = new ExceptionInfo
 }
 class BranchRedir extends Bundle {
   val TargetPC = UInt(64.W)
@@ -33,6 +34,7 @@ class EXUIO extends Bundle {
 
 class EXU extends Module {
   val io = IO(new EXUIO)
+  io.exe2Mem.exceInfo := io.decode2Exe.exceInfo
   val alu = Module(new ALU_top)
   // Todo: Deal with the bypass condition
   val op1 = io.decode2Exe.Op1

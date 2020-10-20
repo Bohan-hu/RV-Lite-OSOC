@@ -16,11 +16,7 @@ class Top extends Module {
   val mem = Module(new MEM)
   val wb = Module(new WB)
   val regfile = Module(new Regfile)
-  val exceptionRedir = Wire(new ExceptionRedir)
   val csrFile = Module(new CSRFile)
-
-  exceptionRedir.redir := false.B
-  exceptionRedir.excePC := 0.U
 
   // IMEM < clk
   imem.io.clk := clock.asBool()
@@ -32,12 +28,15 @@ class Top extends Module {
   ifu.io.rvalid:= imem.io.data_valid
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := exu.io.exe2IF
-  ifu.io.exceptionRedir := exceptionRedir
+  ifu.io.exceptionRedir := csrFile.io.ifRedir
   ifu.io.pause := mem.io.pauseReq || exu.io.pauseReq  // Todo: Modify as 5 stage pipeline
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out
+  decoder.io.intCtrl <> csrFile.io.intCtrl
   decoder.io.regfileIO <> regfile.io.rdPort
+  decoder.io.exceptionInfoIF <> ifu.io.exceInfo
+  decoder.io.PLIC_SEI := false.B
 
   // DECODER <> EXU
   exu.io.instBundleIn := decoder.io.instBundleOut
@@ -53,7 +52,7 @@ class Top extends Module {
   wb.io.regfileWrite <> regfile.io.wrPort
 
   // WB <> csr
-  wb.io.csrRw <> csrFile.io
+  wb.io.csrRw <> csrFile.io.commitCSR
   dmem.io.clk := clock.asBool()
   dmem.io.reset := reset.asBool()
   dmem.io.mem2dmem <> mem.io.mem2dmem
@@ -65,6 +64,11 @@ class Top extends Module {
   io.instBundleOut := wb.io.instBundleOut
 
   // Consts
+  // TODO: TEST
+  val clint_tmp = Module(new CLINT)
+  clint_tmp.io.tocsr <> csrFile.io.clintIn
+  clint_tmp.io.memport <> mem.io.toclint
+
 }
 
 object Top extends App {

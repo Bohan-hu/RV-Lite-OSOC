@@ -2,10 +2,7 @@ package core
 import Chisel.switch
 import chisel3._
 
-class ExceptionRedir extends Bundle {
-  val excePC = UInt(64.W)
-  val redir = Bool()
-}
+
 class exceptionIO extends Bundle {
   val excep2if = Output(new ExceptionRedir)
 }

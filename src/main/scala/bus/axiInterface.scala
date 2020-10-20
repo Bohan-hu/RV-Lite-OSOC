@@ -1,14 +1,14 @@
 package bus
 import chisel3._
 import chisel3.util._
+import chisel3.stage.ChiselStage
 class CPUInstReq extends Bundle {
   val req = Bool()
   val addr = UInt(64.W)
 }
 
 class CPUInstResp extends Bundle {
-  val inst = UInt(64.W)
-  val last = Bool()
+  val inst = UInt(32.W)
   val valid = Bool()
 }
 
@@ -16,10 +16,9 @@ class CPUDataReq extends Bundle {
   val req = Bool()
   val isWrite = Bool()
   val addr = UInt(64.W)
-  val len = UInt(4.W)
   val size = UInt(3.W)
   val wData = UInt(64.W)
-  val mask = UInt(8.W)  // 8 Bytes
+  val wStrb = UInt(8.W)  // 8 Bytes
   val wLast = Bool()
 }
 
@@ -106,6 +105,11 @@ class AXIBridge extends Module {
   // Data transfer should depend on the Mem Op
   val state = RegInit(sIDLE)
   // State Transfer Logic
+  io.instResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_IREQ
+  io.instResp.inst := Mux(io.instReq.addr(2), io.axiMaster.rdata(63, 32), io.axiMaster.rdata(31, 0))
+  io.dataResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_DREQ
+  io.dataResp.rdata := io.axiMaster.rdata
+  io.dataResp.write_done := io.axiMaster.bvalid && state === sWAIT_WRESP_DREQ
   switch(state) {
     is(sIDLE) {
       when(io.dataReq.req && io.dataReq.isWrite) {
@@ -122,7 +126,7 @@ class AXIBridge extends Module {
       }
     }
     is(sWAIT_RDATA_IREQ) {
-      when(io.axiMaster.rvalid && io.axiMaster.rlast){
+      when(io.axiMaster.rvalid && io.axiMaster.rlast) {
         state := sIDLE
       }
     }
@@ -154,40 +158,52 @@ class AXIBridge extends Module {
   }
   // Assign outputs
   io.axiMaster.awaddr := io.dataReq.addr  // Only data has write request
+  io.axiMaster.awsize := io.dataReq.size
+  io.axiMaster.wdata := io.dataReq.wData
+  io.axiMaster.wstrb := io.dataReq.wStrb
   io.axiMaster.arvalid := false.B
   io.axiMaster.awvalid := false.B
+  io.axiMaster.arsize := "b011".U
   io.axiMaster.wvalid := false.B
   io.axiMaster.bready := true.B
   io.axiMaster.rready := false.B
   io.axiMaster.wlast := false.B
+  io.axiMaster.awlen := 0.U     // Do not Burst
+  io.axiMaster.arlen := 0.U     // Do not Burst
 
     switch(state) {
     is(sIDLE) {
       when(io.dataReq.req && io.dataReq.isWrite) {
         io.axiMaster.awaddr := io.dataReq.addr
+        io.axiMaster.awsize := io.dataReq.size
         io.axiMaster.awvalid := true.B
       }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite) {
         io.axiMaster.araddr := io.dataReq.addr
         io.axiMaster.arvalid := true.B
+        io.axiMaster.arsize := io.dataReq.size
       }.elsewhen(io.instReq.req) {
         io.axiMaster.araddr := io.instReq.addr
         io.axiMaster.arvalid := true.B
+        io.axiMaster.arsize := "b011".U
       }
     }
     is(sSEND_RADDR_IREQ) {
       io.axiMaster.araddr := io.instReq.addr
       io.axiMaster.arvalid := true.B
+      io.axiMaster.arsize := "b011".U
     }
     is(sWAIT_RDATA_IREQ) {
       io.axiMaster.rready := true.B
     }
     is(sSEND_WADDR_DREQ) {
       io.axiMaster.awaddr := io.dataReq.addr
+      io.axiMaster.awsize := io.dataReq.size
       io.axiMaster.awvalid := true.B
     }
     is(sSEND_WDATA_DREQ) {
-      io.axiMaster.wdata := io.dataReq.wData
       io.axiMaster.wvalid := true.B
+      io.axiMaster.wlast := true.B
+      io.axiMaster.wid := 0.U
     }
     is(sWAIT_WRESP_DREQ) {
       
@@ -200,4 +216,9 @@ class AXIBridge extends Module {
       io.axiMaster.rready := true.B
     }
   }
+}
+
+object AXIBridge extends App {
+  val stage = new ChiselStage
+  stage.emitVerilog(new AXIBridge)
 }

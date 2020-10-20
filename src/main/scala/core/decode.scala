@@ -31,17 +31,17 @@ class Decode2Exe extends Bundle {
   val MemType = UInt(3.W)
   val CSRCmd = UInt(3.W)
   val isFence = Bool()
+  val exceInfo = new ExceptionInfo
 }
 
 class Decode extends Module {
   val io = IO(new Bundle() {
     val instBundleIn = Input(new InstBundle)
+    val exceptionInfoIF = Input(new ExceptionInfo)
     val regfileIO = Flipped(new RegRead)
     val decode2Exe = Output(new Decode2Exe)
     val instBundleOut = Output(new InstBundle)
     val intCtrl = Input(new INTCtrl)
-    val exceptionInfo_i = Output(new ExceptionInfo)
-    val exceptionInfo_o = Output(new ExceptionInfo)
     val PLIC_SEI = Input(Bool())
   })
 
@@ -128,6 +128,7 @@ class Decode extends Module {
       CSRRCI -> List(Y, BR_N, OP1_X, IMM_ZEXT, Y, Y, ALU_COPY_2, FU_ALU, N, WB_CSR, Y, N, MEM_NOP, SZ_X, CSR_C, N),
       ECALL -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_I, N),
       MRET -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_I, N),
+      SRET -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_I, N),
       URET -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_I, N),
       EBREAK -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_I, N),
       WFI -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, N), // implemented as a NOP
@@ -190,13 +191,13 @@ class Decode extends Module {
   val S = "b01".U
   val U = "b00".U
   // Exception info
-  val exceptionInfo = WireInit(io.exceptionInfo_i)
+  val exceptionInfo = WireInit(io.exceptionInfoIF)
 
   def MipAndMie(no: Int) = io.intCtrl.mip(no) && io.intCtrl.mie(no)
 
   def makeInt(no: Int) = (no.U | 1.U << 63)
 
-  when(!io.exceptionInfo_i.valid) {
+  when(!io.exceptionInfoIF.valid) {
     exceptionInfo.tval := io.instBundleIn.inst
     // TODO: Illegal instruction on xRET when x > privMode
 
@@ -267,6 +268,7 @@ class Decode extends Module {
       }
     }
   }
+  io.decode2Exe.exceInfo := exceptionInfo
 
 }
 

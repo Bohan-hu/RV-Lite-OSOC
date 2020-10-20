@@ -21,10 +21,12 @@ class IFUIO extends Bundle {
   val branchRedir = Input(new BranchRedir)
   val exceptionRedir = Input(new ExceptionRedir)
   val pause = Input(Bool())
+  val exceInfo = Output(new ExceptionInfo)
 }
 
 class IFU extends Module {
   val io = IO(new IFUIO)
+
   val pc = RegInit(0x80000000L.U(64.W))
   io.inst_pc := pc
   io.inst_req := true.B
@@ -33,7 +35,7 @@ class IFU extends Module {
     pc := npc
   }
   when(io.exceptionRedir.redir) {
-    npc := io.exceptionRedir.excePC
+    npc := io.exceptionRedir.redirPC
   }.elsewhen(io.branchRedir.redir) {
     npc := io.branchRedir.TargetPC
   }.otherwise {
@@ -44,8 +46,14 @@ class IFU extends Module {
   io.inst_out.inst := io.rdata
   // TODO: Add exception handle
 
+  val exceptioInfo2decode = Wire(new ExceptionInfo)
+  exceptioInfo2decode.cause := 0.U
+  exceptioInfo2decode.epc := io.inst_out.inst_pc
+  exceptioInfo2decode.valid := false.B
+  exceptioInfo2decode.tval := io.rdata
   io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir, false.B, io.rvalid)))
   io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir, 0.U, io.inst_pc)))
+  io.exceInfo := exceptioInfo2decode
 }
 
 object IFU extends App {

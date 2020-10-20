@@ -12,12 +12,13 @@ class WBIO extends Bundle {
   val mem2Wb = Input(new Mem2Wb)
   val instBundleOut = Output(new InstBundle)
   val regfileWrite = Output(new RegWrite)
-  val csrRw = Flipped(new CSRIO)
+  val csrRw = Flipped(new commitCSR)
   // todo: interact with csr
 }
 
 class WB extends Module {
   val io = IO(new WBIO)
+  io.csrRw.exceptionInfo := io.mem2Wb.exceInfo
   BoringUtils.addSource(RegNext(io.instBundleIn.instValid), "difftestCommit")
   io.csrRw.csrWData := io.mem2Wb.aluResult
   io.csrRw.csrAddr := io.instBundleIn.inst.asTypeOf(new CSRRInstruction).csr

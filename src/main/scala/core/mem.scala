@@ -16,6 +16,7 @@ class Mem2Wb extends Bundle {
   val RFWen = Bool()
   val CSRCmd = UInt(3.W)
   val isFence = Bool()
+  val exceInfo = new ExceptionInfo
 }
 
 class MEM2dmem extends Bundle {
@@ -35,6 +36,7 @@ class MEMIO extends Bundle {
   val instBundleOut = Output(new InstBundle)
   val mem2dmem = new MEM2dmem
   val pauseReq = Output(Bool())
+  val toclint = Flipped(new MEMCLINT)
 }
 
 object MMIO {
@@ -120,6 +122,12 @@ object DataTypesUtils {
 
 class MEM extends Module {
   val io = IO(new MEMIO)
+  // TODO:
+  io.mem2Wb.exceInfo := io.exe2Mem.exceInfo
+  io.toclint.wen := io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U
+  io.toclint.data := io.exe2Mem.R2val
+  io.toclint.addr := io.exe2Mem.aluResult
+  // TODO Ends
   val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
   val memRdata = io.mem2dmem.memRdata
   val address = io.exe2Mem.aluResult - 0x80000000L.U
