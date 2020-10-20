@@ -484,7 +484,8 @@ class CSRFile extends Module {
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
     CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
-    CSRAddr.satp -> { oldValue: UInt => Mux(oldValue(63, 60) === 8.U, oldValue, Cat(0.U(4.W), oldValue(59, 0))) } // We only support SV39 and Bare
+    CSRAddr.satp -> { oldValue: UInt => Mux(oldValue(63, 60) === 8.U, oldValue, Cat(0.U(4.W), oldValue(59, 0))) }, // We only support SV39 and Bare
+    CSRAddr.mip -> { oldValue: UInt => (oldValue | (io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI)) } // We only support SV39 and Bare
   )
   // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
   val isCsr_S = io.commitCSR.csrOp === CSR_S || io.commitCSR.csrOp === CSR_SI
