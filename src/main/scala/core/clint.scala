@@ -2,10 +2,12 @@ package core
 import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
+import chisel3.util.MuxLookup
 
 class MEMCLINT extends Bundle {
       val addr = Input(UInt(64.W))
       val data = Input(UInt(64.W))
+      val rdata = Output(UInt(64.W))
       val wen = Input(Bool())
 }
 class CLINT extends Module {
@@ -32,10 +34,17 @@ class CLINT extends Module {
     0x8008 -> inc,
     0xbff8 -> mtime
   )
+  val addrs = List(
+    0x38000000L.U -> msip,
+    0x38004000L.U -> mtimecmp,
+    0x38008000L.U -> freq,
+    0x38008008L.U -> inc,
+    0x3800bff8L.U -> mtime
+  )
+  io.memport.rdata := MuxLookup(io.memport.addr, 0.U, addrs)
   val offset = io.memport.addr(15,0)
-  BoringUtils.addSource(mtime, "time")
   offsets.map( kv => { when(io.memport.wen && offset === kv._1.U) {kv._2 := io.memport.data}} )
-  io.tocsr.mtip := RegNext(mtime >= mtimecmp)
+  io.tocsr.mtip := RegNext((mtime >= mtimecmp))
   io.tocsr.msip := RegNext(msip =/= 0.U)
 }
 

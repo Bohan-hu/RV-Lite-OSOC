@@ -20,6 +20,7 @@ class WB extends Module {
   val io = IO(new WBIO)
   io.csrRw.exceptionInfo := io.mem2Wb.exceInfo
   BoringUtils.addSource(RegNext(io.instBundleIn.instValid), "difftestCommit")
+  BoringUtils.addSource(RegNext(Mux(io.mem2Wb.exceInfo.valid & io.instBundleIn.instValid, io.mem2Wb.exceInfo.cause,0.U)),"difftestIntrNO")
   io.csrRw.csrWData := io.mem2Wb.aluResult
   io.csrRw.csrAddr := io.instBundleIn.inst.asTypeOf(new CSRRInstruction).csr
   io.csrRw.csrOp := io.mem2Wb.CSRCmd
@@ -29,7 +30,7 @@ class WB extends Module {
 
   io.instBundleOut := io.instBundleIn
   io.regfileWrite.waddr := io.mem2Wb.RdNum
-  io.regfileWrite.wen := io.mem2Wb.RFWen & io.instBundleIn.instValid
+  io.regfileWrite.wen := io.mem2Wb.RFWen & io.instBundleIn.instValid & ~io.mem2Wb.exceInfo.valid
   io.regfileWrite.wdata := MuxLookup(io.mem2Wb.WBSel, 0.U,
     Array(
       WB_X -> io.mem2Wb.aluResult,

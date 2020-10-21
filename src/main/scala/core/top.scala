@@ -66,7 +66,7 @@ class Top extends Module {
   // Consts
   // TODO: TEST
   val clint_tmp = Module(new CLINT)
-  clint_tmp.io.tocsr <> csrFile.io.clintIn
+  csrFile.io.clintIn := clint_tmp.io.tocsr
   clint_tmp.io.memport <> mem.io.toclint
 
 }

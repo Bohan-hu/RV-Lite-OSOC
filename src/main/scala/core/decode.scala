@@ -259,7 +259,7 @@ class Decode extends Module {
     // If we are in M mode, the S INT is disabled (unless is delegated)
     // If we are in S mode,
     // If M mode interrupts are disabled and we are in S mode,
-    when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt) { // If is interrupt, we need to consider whether the interrupt can be taken
+    when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt & io.instBundleIn.instValid) { // If is interrupt, we need to consider whether the interrupt can be taken
       when(io.intCtrl.mideleg(exceptionInfo.cause(62, 0))        // If SxI is delegated
         && ((io.intCtrl.sie && io.intCtrl.privMode === S) || io.intCtrl.privMode === U)) { // If is delegated to S mode
         exceptionInfo.valid := true.B

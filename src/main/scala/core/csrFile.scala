@@ -395,7 +395,6 @@ class CSRFile extends Module {
   BoringUtils.addSource(mepc, "difftestMepc")
   val mie = RegInit(UInt(64.W), 0.U)
   val mip = RegInit(UInt(64.W), 0.U)
-  //  val mip
   val mstatus = RegInit(UInt(64.W), 0x1800.U)
   BoringUtils.addSource(mstatus, "difftestMstatus")
   val mscratch = RegInit(UInt(64.W), 0.U)
@@ -410,7 +409,7 @@ class CSRFile extends Module {
   val pmpaddr3 = RegInit(UInt(64.W), 0.U)
   val stvec = RegInit(UInt(64.W), 0.U)
   val scounteren = RegInit(UInt(64.W), 0.U)
-  val csrRdAddr = Wire(UInt(8.W))
+  val csrRdAddr = Wire(UInt(12.W))
   val sscratch = RegInit(UInt(64.W), 0.U)
   val sepc = RegInit(UInt(64.W), 0.U)
   BoringUtils.addSource(sepc, "difftestSepc")
@@ -419,7 +418,7 @@ class CSRFile extends Module {
   val stval = RegInit(UInt(64.W), 0.U)
   val satp = RegInit(UInt(64.W), 0.U)
 
-  csrRdAddr := DontCare
+  csrRdAddr := io.commitCSR.csrAddr
   val csrMapping = Array(
     CSRAddr.mvendorid -> mvendorid,
     //    // Machine Information Registers
@@ -454,6 +453,7 @@ class CSRFile extends Module {
     CSRAddr.stval -> stval,
     CSRAddr.satp -> satp
   )
+  // dontTouch(mip_o)
   // CSR Read Data
   val csrRdata = MuxLookup(io.commitCSR.csrAddr, 0.U, csrMapping)
   io.commitCSR.csrRdata := csrRdata
@@ -487,8 +487,7 @@ class CSRFile extends Module {
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
     CSRAddr.mstatus -> { oldValue: UInt => Cat(oldValue.asTypeOf(new mstatus).FS === "b11".U, oldValue(62, 0)) },
-    CSRAddr.satp -> { oldValue: UInt => Mux(oldValue(63, 60) === 8.U, oldValue, Cat(0.U(4.W), oldValue(59, 0))) }, // We only support SV39 and Bare
-    CSRAddr.mip -> { oldValue: UInt => (oldValue | (io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI)) } // We only support SV39 and Bare
+    CSRAddr.satp -> { oldValue: UInt => Mux(oldValue(63, 60) === 8.U, oldValue, Cat(0.U(4.W), oldValue(59, 0))) } // We only support SV39 and Bare
   )
   // Generate CSR Write Enable Signals for EXISTING & WRITABLE CSRs
   val isCsr_S = io.commitCSR.csrOp === CSR_S || io.commitCSR.csrOp === CSR_SI
@@ -511,7 +510,7 @@ class CSRFile extends Module {
     when(io.commitCSR.csrAddr === kv._1 && csrWen && CSRAddrLegal) { // We have no need to consider whether the address is legal
       // Since we only generate the logic for legal writing
       val newValMasked = WireInit(io.commitCSR.csrWData)
-      val updateVal = (Mux(isCsr_S | isCsr_C, io.commitCSR.csrRdata, 0.U) | io.commitCSR.csrWData) & (~Mux(isCsr_C, io.commitCSR.csrWData, 0.U)).asUInt()
+      val updateVal = (Mux(isCsr_S | isCsr_C, csrRdata, 0.U) | io.commitCSR.csrWData) & (~Mux(isCsr_C, io.commitCSR.csrWData, 0.U)).asUInt()
       if (WrMaskedCSR.contains(kv._1)) { // CSR Write is Masked ？
         newValMasked := maskedWrite(kv._2, updateVal, WrMaskedCSR(kv._1))
       }
@@ -522,6 +521,12 @@ class CSRFile extends Module {
       kv._2 := newValWithSideEffect
     }
   )
+  // Handle the MIP & SIP Case
+  when( csrWen && io.commitCSR.csrAddr === CSRAddr.mip ) {
+    mip := maskedWrite(mip,io.commitCSR.csrWData, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+  }.otherwise {
+    mip := mip & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+  }
   // Illegal Instruction
   val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
   io.illegalInst := raiseIllegalInstructionException

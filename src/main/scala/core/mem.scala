@@ -130,20 +130,18 @@ class MEM extends Module {
   io.toclint.data := io.exe2Mem.R2val
   io.toclint.addr := io.exe2Mem.aluResult
   // TODO Ends
-  val time = WireInit(0.U)
-  BoringUtils.addSink(time, "time")
   val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
-  val memRdata = Mux(readClint, time, io.mem2dmem.memRdata)
+  val memRdata = Mux(readClint, io.toclint.rdata, io.mem2dmem.memRdata)
   val address = io.exe2Mem.aluResult - 0x80000000L.U
   val signExt = io.exe2Mem.MemType === SZ_B || io.exe2Mem.MemType === SZ_H || io.exe2Mem.MemType === SZ_W
-  val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO
+  val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO & !io.exe2Mem.exceInfo.valid
   io.mem2dmem.memRreq := memRead
   val memPending = !io.mem2dmem.memRvalid & memRead
   when(memRead) {
 //    printf("memRAddr = 0x%x, memRdata = 0x%x\n", io.exe2Mem.aluResult, memRdata)
   }
   io.pauseReq := memPending
-  memWrite := io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE
+  memWrite := io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE & !io.exe2Mem.exceInfo.valid
   val dataSize = MuxLookup(io.exe2Mem.MemType, 8.U,
     Array(
       SZ_D -> 8.U,
