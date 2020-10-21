@@ -1,6 +1,7 @@
 package core
 import chisel3._
 import chisel3.stage.ChiselStage
+import chisel3.util.experimental.BoringUtils
 
 class MEMCLINT extends Bundle {
       val addr = Input(UInt(64.W))
@@ -15,7 +16,7 @@ class CLINT extends Module {
   val mtime = RegInit(0.U(64.W))
   val mtimecmp = RegInit(0.U(64.W))
   val msip = RegInit(0.U(64.W))
-  val clk = 10000
+  val clk = 100
   val freq = RegInit(clk.U(16.W))
   val inc = RegInit(1.U(16.W))
 
@@ -32,6 +33,7 @@ class CLINT extends Module {
     0xbff8 -> mtime
   )
   val offset = io.memport.addr(15,0)
+  BoringUtils.addSource(mtime, "time")
   offsets.map( kv => { when(io.memport.wen && offset === kv._1.U) {kv._2 := io.memport.data}} )
   io.tocsr.mtip := RegNext(mtime >= mtimecmp)
   io.tocsr.msip := RegNext(msip =/= 0.U)

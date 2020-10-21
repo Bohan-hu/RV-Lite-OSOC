@@ -51,8 +51,8 @@ class IFU extends Module {
   exceptioInfo2decode.epc := io.inst_out.inst_pc
   exceptioInfo2decode.valid := false.B
   exceptioInfo2decode.tval := io.rdata
-  io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir, false.B, io.rvalid)))
-  io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir, 0.U, io.inst_pc)))
+  io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, io.rvalid)))
+  io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, io.inst_pc)))
   io.exceInfo := exceptioInfo2decode
 }
 

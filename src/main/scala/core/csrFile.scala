@@ -337,7 +337,7 @@ class CSRFile extends Module {
   sstatus_read_mask.SIE := true.B
   sstatus_read_mask.SPIE := true.B
   sstatus_read_mask.SPP := true.B
-  sstatus_read_mask.FS := "b00".U
+  sstatus_read_mask.FS := "b11".U
   sstatus_read_mask.XS := "b11".U
   sstatus_read_mask.SUM := true.B
   sstatus_read_mask.MXR := true.B
@@ -413,7 +413,9 @@ class CSRFile extends Module {
   val csrRdAddr = Wire(UInt(8.W))
   val sscratch = RegInit(UInt(64.W), 0.U)
   val sepc = RegInit(UInt(64.W), 0.U)
+  BoringUtils.addSource(sepc, "difftestSepc")
   val scause = RegInit(UInt(64.W), 0.U)
+  BoringUtils.addSource(scause, "difftestScause")
   val stval = RegInit(UInt(64.W), 0.U)
   val satp = RegInit(UInt(64.W), 0.U)
 
@@ -463,6 +465,7 @@ class CSRFile extends Module {
   }.elsewhen(csrRdAddr === CSRAddr.sip) {
     io.commitCSR.csrRdata := csrRdata & mideleg
   }
+  BoringUtils.addSource(mstatus & sstatus_read_mask.asUInt(), "difftestSstatus")
 
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,

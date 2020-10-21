@@ -122,14 +122,18 @@ object DataTypesUtils {
 
 class MEM extends Module {
   val io = IO(new MEMIO)
+  val memWrite = Wire(Bool())
   // TODO:
+  val readClint = io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U
   io.mem2Wb.exceInfo := io.exe2Mem.exceInfo
-  io.toclint.wen := io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U
+  io.toclint.wen := io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U && memWrite
   io.toclint.data := io.exe2Mem.R2val
   io.toclint.addr := io.exe2Mem.aluResult
   // TODO Ends
+  val time = WireInit(0.U)
+  BoringUtils.addSink(time, "time")
   val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
-  val memRdata = io.mem2dmem.memRdata
+  val memRdata = Mux(readClint, time, io.mem2dmem.memRdata)
   val address = io.exe2Mem.aluResult - 0x80000000L.U
   val signExt = io.exe2Mem.MemType === SZ_B || io.exe2Mem.MemType === SZ_H || io.exe2Mem.MemType === SZ_W
   val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO
@@ -139,7 +143,7 @@ class MEM extends Module {
 //    printf("memRAddr = 0x%x, memRdata = 0x%x\n", io.exe2Mem.aluResult, memRdata)
   }
   io.pauseReq := memPending
-  val memWrite = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE
+  memWrite := io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE
   val dataSize = MuxLookup(io.exe2Mem.MemType, 8.U,
     Array(
       SZ_D -> 8.U,
