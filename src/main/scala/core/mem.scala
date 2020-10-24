@@ -132,6 +132,7 @@ class MEM extends Module {
   // TODO Ends
   val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
   val memRdata = Mux(readClint, io.toclint.rdata, io.mem2dmem.memRdata)
+  val accessVAddr = io.exe2Mem.aluResult // TODO
   val address = io.exe2Mem.aluResult - 0x80000000L.U
   val signExt = io.exe2Mem.MemType === SZ_B || io.exe2Mem.MemType === SZ_H || io.exe2Mem.MemType === SZ_W
   val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO & !io.exe2Mem.exceInfo.valid
@@ -195,6 +196,26 @@ class MEM extends Module {
   }
   // MMIO Flag
   BoringUtils.addSource(RegNext(io.exe2Mem.isMemOp & isMMIO), "difftestIsMMIO")
+
+  // LR/SC Handler
+  val isLR = WireInit(false.B)
+  val isSC = WireInit(false.B)
+  val reservationSet = Reg(UInt(64.W))
+  val reservationValid = RegInit(false.B)
+  when(isLR) {  // Update the reservation set
+    reservationValid := true.B
+    reservationSet := accessVAddr
+  }.elsewhen(isSC){
+    reservationValid := false.B
+  }
+  // LSU 
+  // IDLE -> ReqPADDR -> OP -> IDLE
+  val scWillSuccess = reservationValid && reservationSet === accessVAddr
+  // If is SC and SC will fail, write back the failing code 
+  val sIDLE :: sWAIT_RD :: sWAIT_WR :: Nil = Enum(3)
+  // IDLE -> read_req -> transfer to WAIT_RD 
+  // WAIT_RD -> rvalid -> transfer to IDLE  / isAMO -> transfer to WAIT_WR
+  // WVALID -> valid -> 
 }
 
 object MEM extends App {
