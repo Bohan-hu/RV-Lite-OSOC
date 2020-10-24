@@ -11,32 +11,38 @@ import chisel3.util._
 class Mem2Wb extends Bundle {
   val aluResult = UInt(64.W)
   val memResult = UInt(64.W)
-  val RdNum = UInt(5.W)
-  val WBSel = UInt(2.W)
-  val RFWen = Bool()
-  val CSRCmd = UInt(3.W)
-  val isFence = Bool()
-  val exceInfo = new ExceptionInfo
+  val RdNum     = UInt(5.W)
+  val WBSel     = UInt(2.W)
+  val RFWen     = Bool()
+  val CSRCmd    = UInt(3.W)
+  val isFence   = Bool()
+  val exceInfo  = new ExceptionInfo
 }
 
 class MEM2dmem extends Bundle {
-  val memRreq = Output(Bool())
-  val memAddr = Output(UInt(64.W))
-  val memRdata = Input(UInt(64.W))
+  val memRreq   = Output(Bool())
+  val memAddr   = Output(UInt(64.W))
+  val memRdata  = Input(UInt(64.W))
   val memRvalid = Input(Bool())
-  val memWdata = Output(UInt(64.W))
-  val memWmask = Output(UInt(64.W))
-  val memWen = Output(Bool())
+  val memWdata  = Output(UInt(64.W))
+  val memWmask  = Output(UInt(64.W))
+  val memWen    = Output(Bool())
 }
 
 class MEMIO extends Bundle {
-  val instBundleIn = Input(new InstBundle)
-  val exe2Mem = Input(new Exe2Mem)
-  val mem2Wb = Output(new Mem2Wb)
-  val instBundleOut = Output(new InstBundle)
+  val isMemOp     = Input(Bool())
+  val MemOp       = Input(UInt(2.W))
+  val MemType     = Input(UInt(3.W))
+  val baseAddr    = Input(UInt(64.W))
+  val imm         = Input(UInt(64.W))
+  val R2Val       = Input(UInt(64.W))
+  val exceInfoIn  = Input(new ExceptionInfo)
+  val exceInfoOut = Output(new ExceptionInfo)
+  val memResult   = Output(UInt(64.W))
+  val pauseReq    = Output(Bool())
+  // Will be passed directly by exu to outside
   val mem2dmem = new MEM2dmem
-  val pauseReq = Output(Bool())
-  val toclint = Flipped(new MEMCLINT)
+  val toclint  = Flipped(new MEMCLINT)
 }
 
 object MMIO {
@@ -46,7 +52,7 @@ object MMIO {
     (0x40001000L, 0x8L), // vga ctrl
     (0x40000000L, 0x1000L), // flash
     (0x40002000L, 0x1000L), // dummy sdcard
-    (0x42000000L, 0x1000L), // DiffTestCtrl
+    (0x42000000L, 0x1000L),  // DiffTestCtrl
     (0x40004000L, 0x1000L), // meipGen
     (0x40003000L, 0x1000L), // dma
 
@@ -123,79 +129,18 @@ object DataTypesUtils {
 class MEM extends Module {
   val io = IO(new MEMIO)
   val memWrite = Wire(Bool())
+  val accessVAddr = io.baseAddr + io.imm
+  val accessPAddr = accessVAddr - 0x80000000L.U   // TODO: Handle the Translation
+  val isMMIO = MMIO.inMMIORange(accessVAddr)
   // TODO:
-  val readClint = io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U
-  io.mem2Wb.exceInfo := io.exe2Mem.exceInfo
-  io.toclint.wen := io.exe2Mem.aluResult >= 0x38000000L.U && io.exe2Mem.aluResult <= 0x00010000L.U + 0x38000000L.U && memWrite
-  io.toclint.data := io.exe2Mem.R2val
-  io.toclint.addr := io.exe2Mem.aluResult
+  val readClint = accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U
+  io.exceInfoOut := io.exceInfoIn
+  io.toclint.wen := accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U && memWrite
+  io.toclint.data := io.R2Val
+  io.toclint.addr := accessVAddr
   // TODO Ends
-  val isMMIO = MMIO.inMMIORange(io.exe2Mem.aluResult)
   val memRdata = Mux(readClint, io.toclint.rdata, io.mem2dmem.memRdata)
-  val accessVAddr = io.exe2Mem.aluResult // TODO
-  val address = io.exe2Mem.aluResult - 0x80000000L.U
-  val signExt = io.exe2Mem.MemType === SZ_B || io.exe2Mem.MemType === SZ_H || io.exe2Mem.MemType === SZ_W
-  val memRead = io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_READ & !isMMIO & !io.exe2Mem.exceInfo.valid
-  io.mem2dmem.memRreq := memRead
-  val memPending = !io.mem2dmem.memRvalid & memRead
-  when(memRead) {
-//    printf("memRAddr = 0x%x, memRdata = 0x%x\n", io.exe2Mem.aluResult, memRdata)
-  }
-  io.pauseReq := memPending
-  memWrite := io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE & !io.exe2Mem.exceInfo.valid
-  val dataSize = MuxLookup(io.exe2Mem.MemType, 8.U,
-    Array(
-      SZ_D -> 8.U,
-      SZ_W -> 4.U,
-      SZ_WU -> 4.U,
-      SZ_H -> 2.U,
-      SZ_HU -> 2.U,
-      SZ_B -> 1.U,
-      SZ_BU -> 1.U
-    )
-  )
-  val memRdataRaw = MuxLookup(dataSize, memRdata, // Including Word Select
-    Array( // Byte, Addressed by addr[2:0]
-      1.U -> memRdata.asTypeOf(DataTypesUtils.Bytes)(address(2, 0)),
-      2.U -> memRdata.asTypeOf(DataTypesUtils.HalfWords)(address(2, 1)),
-      4.U -> memRdata.asTypeOf(DataTypesUtils.Words)(address(2)),
-      8.U -> memRdata
-    )
-  )
-  val memRdataRawExt = MuxLookup(dataSize, memRdata, // Including Word Select
-    Array( // Byte, Addressed by addr[2:0]
-      1.U -> memRdata.asTypeOf(DataTypesUtils.Bytes)(address(2, 0)),
-      2.U -> memRdata.asTypeOf(DataTypesUtils.HalfWords)(address(2, 1)),
-      4.U -> memRdata.asTypeOf(DataTypesUtils.Words)(address(2)),
-      8.U -> memRdata
-    ).map( kw => { kw._1 -> signExt64(kw._2) }
-  )
-  )
-  io.mem2Wb.aluResult := io.exe2Mem.aluResult // Mem Address
-  io.mem2dmem.memAddr := address
-  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, address, io.exe2Mem.R2val)
-  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, address))
-  io.mem2dmem.memWen := io.instBundleIn.instValid & io.exe2Mem.isMemOp & io.exe2Mem.MemOp === MEM_WRITE & !isMMIO
-  io.mem2Wb.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
-  when(memPending) {
-    io.instBundleOut := io.instBundleIn
-    io.instBundleOut.instValid := false.B
-  } otherwise {
-    io.instBundleOut := io.instBundleIn
-  }
-  io.mem2Wb.WBSel := io.exe2Mem.WBSel
-  io.mem2Wb.RFWen := io.exe2Mem.RFWen
-  io.mem2Wb.CSRCmd := io.exe2Mem.CSRCmd
-  io.mem2Wb.isFence := io.exe2Mem.isFence
-  io.mem2Wb.RdNum := io.exe2Mem.RdNum
-  // passthrough
-
-  // Fake UART
-  when(isMMIO & memWrite &  0x40600000L.U <= io.exe2Mem.aluResult & (0x40600000L+10L).U >= io.exe2Mem.aluResult) {
-    printf("%c", io.exe2Mem.R2val(7,0))
-  }
-  // MMIO Flag
-  BoringUtils.addSource(RegNext(io.exe2Mem.isMemOp & isMMIO), "difftestIsMMIO")
+  val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
 
   // LR/SC Handler
   val isLR = WireInit(false.B)
@@ -208,6 +153,60 @@ class MEM extends Module {
   }.elsewhen(isSC){
     reservationValid := false.B
   }
+
+  // No prior Exception happens, and the op type is read, notice the signal is for dmem
+  val memRead = io.isMemOp & io.MemOp === MEM_READ & !isMMIO & !io.exceInfoIn.valid
+  
+  io.mem2dmem.memRreq := memRead
+  val memPending = !io.mem2dmem.memRvalid & memRead
+  when(memRead) {
+//    printf("memRAddr = 0x%x, memRdata = 0x%x\n", io.exe2Mem.aluResult, memRdata)
+  }
+  io.pauseReq := memPending
+  memWrite := io.isMemOp & io.MemOp === MEM_WRITE & !io.exceInfoIn.valid
+  val dataSize = MuxLookup(io.MemType, 8.U,
+    Array(
+      SZ_D -> 8.U,
+      SZ_W -> 4.U,
+      SZ_WU -> 4.U,
+      SZ_H -> 2.U,
+      SZ_HU -> 2.U,
+      SZ_B -> 1.U,
+      SZ_BU -> 1.U
+    )
+  )
+  val memRdataRaw = MuxLookup(dataSize, memRdata, // Including Word Select
+    Array( // Byte, Addressed by addr[2:0]
+      1.U -> memRdata.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
+      2.U -> memRdata.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
+      4.U -> memRdata.asTypeOf(DataTypesUtils.Words)(accessVAddr(2)),
+      8.U -> memRdata
+    )
+  )
+  val memRdataRawExt = MuxLookup(dataSize, memRdata, // Including Word Select
+    Array( // Byte, Addressed by addr[2:0]
+      1.U -> memRdata.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
+      2.U -> memRdata.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
+      4.U -> memRdata.asTypeOf(DataTypesUtils.Words)(accessVAddr(2)),
+      8.U -> memRdata
+    ).map( kw => { kw._1 -> signExt64(kw._2) }
+  )
+  )
+
+  io.mem2dmem.memAddr := accessPAddr
+  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, io.R2Val)
+  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, accessVAddr))
+  io.mem2dmem.memWen := memWrite
+  io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
+  io.pauseReq := memPending
+
+  // Fake UART
+  when(isMMIO & memWrite &  0x40600000L.U <= accessVAddr & (0x40600000L+10L).U >= accessVAddr) {
+    printf("%c", io.R2Val(7,0))
+  }
+  // MMIO Flag
+  BoringUtils.addSource(RegNext(io.isMemOp & isMMIO), "difftestIsMMIO")
+
   // LSU 
   // IDLE -> ReqPADDR -> OP -> IDLE
   val scWillSuccess = reservationValid && reservationSet === accessVAddr

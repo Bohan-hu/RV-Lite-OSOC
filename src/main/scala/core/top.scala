@@ -13,7 +13,6 @@ class Top extends Module {
   val dmem = Module(new common.SyncReadWriteMem)
   val decoder = Module(new Decode)
   val exu = Module(new EXU)
-  val mem = Module(new MEM)
   val wb = Module(new WB)
   val regfile = Module(new Regfile)
   val csrFile = Module(new CSRFile)
@@ -21,7 +20,7 @@ class Top extends Module {
   // IMEM < clk
   imem.io.clk := clock.asBool()
   imem.io.reset := reset.asBool()
-  imem.io.pause := mem.io.pauseReq || exu.io.pauseReq
+  imem.io.pause := exu.io.pauseReq
   // IFU <> IMEM
   imem.io.rreq := ifu.io.inst_req
   imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
@@ -29,7 +28,7 @@ class Top extends Module {
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := csrFile.io.ifRedir
-  ifu.io.pause := mem.io.pauseReq || exu.io.pauseReq  // Todo: Modify as 5 stage pipeline
+  ifu.io.pause := exu.io.pauseReq  // Todo: Modify as 5 stage pipeline
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out
@@ -42,20 +41,16 @@ class Top extends Module {
   exu.io.instBundleIn := decoder.io.instBundleOut
   exu.io.decode2Exe := decoder.io.decode2Exe
 
-  // EXU <> MEM
-  mem.io.instBundleIn := exu.io.instBundleOut
-  mem.io.exe2Mem := exu.io.exe2Mem
-
   // MEM <> WB / MEM <> dmem
-  wb.io.instBundleIn := mem.io.instBundleOut
-  wb.io.mem2Wb := mem.io.mem2Wb
+  wb.io.instBundleIn := exu.io.instBundleOut
+  wb.io.exe2Commit := exu.io.exe2Commit
   wb.io.regfileWrite <> regfile.io.wrPort
 
   // WB <> csr
   wb.io.csrRw <> csrFile.io.commitCSR
   dmem.io.clk := clock.asBool()
   dmem.io.reset := reset.asBool()
-  dmem.io.mem2dmem <> mem.io.mem2dmem
+  dmem.io.mem2dmem <> exu.io.mem2dmem
 
   io.pc := wb.io.instBundleOut.inst_pc
   BoringUtils.addSource(RegNext(wb.io.instBundleOut.inst_pc), "difftestThisPC")
@@ -67,7 +62,7 @@ class Top extends Module {
   // TODO: TEST
   val clint_tmp = Module(new CLINT)
   csrFile.io.clintIn := clint_tmp.io.tocsr
-  clint_tmp.io.memport <> mem.io.toclint
+  clint_tmp.io.memport <> exu.io.toclint
 
 }
 
