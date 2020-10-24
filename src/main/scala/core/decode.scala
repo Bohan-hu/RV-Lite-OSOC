@@ -51,17 +51,39 @@ class Decode extends Module {
   val decodeops =
     Array(/* val  |  BR  |  op1  |   op2     |  R1  |  R2  |    FU      |   FU    | ALU is   |  wb    | rf   | is   |   mem     | mask  | csr | fence.i */
       /* inst | type |   sel |    sel    |  ren |  ren |     op     |  TYPE   | WordOp   |  sel   | wen  |  mem |    op     | type  | cmd |         */
-      LD -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_D, CSR_X, N),
-      LW -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_W, CSR_X, N),
-      LWU -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_WU, CSR_X, N),
-      LB -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_B, CSR_X, N),
-      LBU -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_BU, CSR_X, N),
-      LH -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_H, CSR_X, N),
-      LHU -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, ALU_ADD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_HU, CSR_X, N),
-      SD -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, ALU_ADD, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_D, CSR_X, N),
-      SW -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, ALU_ADD, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_W, CSR_X, N),
-      SB -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, ALU_ADD, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_B, CSR_X, N),
-      SH -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, ALU_ADD, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_H, CSR_X, N),
+      LD ->     List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_D, CSR_X, N),
+      LW ->     List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_W, CSR_X, N),
+      LWU ->    List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_WU, CSR_X, N),
+      LB -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_B, CSR_X, N),
+      LBU -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_BU, CSR_X, N),
+      LH -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_H, CSR_X, N),
+      LHU -> List(Y, BR_N, OP1_RS1, IMM_ITYPE, Y, N, LSU_LOAD, FU_LSU, N, WB_MEM, Y, Y, MEM_READ, SZ_HU, CSR_X, N),
+      SD -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, LSU_STORE, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_D, CSR_X, N),
+      SW -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, LSU_STORE, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_W, CSR_X, N),
+      SB -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, LSU_STORE, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_B, CSR_X, N),
+      SH -> List(Y, BR_N, OP1_RS1, IMM_STYPE, Y, Y, LSU_STORE, FU_LSU, N, WB_X, N, Y, MEM_WRITE, SZ_H, CSR_X, N),
+      LR_D    -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, N, LSU_LR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      SC_D    -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_SC, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      LR_W    -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, N, LSU_LR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      SC_W    -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_SC, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOSWAP_D -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_ASWAP, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOADD_D  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AADD, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOXOR_D  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AXOR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOAND_D  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AAND, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOOR_D   -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AOR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOMIN_D  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMIN, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOMAX_D  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMAX, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOMINU_D -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMINU, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOMAXU_D -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMAXU, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_D, CSR_X, N),
+      AMOSWAP_W -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_ASWAP, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOADD_W  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AADD, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOXOR_W  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AXOR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOAND_W  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AAND, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOOR_W   -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AOR, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOMIN_W  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMIN, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOMAX_W  -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMAX, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOMINU_W -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMINU, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
+      AMOMAXU_W -> List(Y, BR_N, OP1_RS1, IMM_ZERO, Y, Y, LSU_AMAXU, FU_LSU, N, WB_MEM, Y, Y, MEM_AMO, SZ_W, CSR_X, N),
       // IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII_I
       AUIPC -> List(Y, BR_N, OP1_PC, IMM_UTYPE, N, N, ALU_ADD, FU_ALU, N, WB_ALU, Y, N, MEM_NOP, SZ_X, CSR_X, N),
       LUI -> List(Y, BR_N, OP1_X, IMM_UTYPE, N, N, ALU_COPY_2, FU_ALU, N, WB_ALU, Y, N, MEM_NOP, SZ_X, CSR_X, N),
@@ -135,8 +157,9 @@ class Decode extends Module {
 
       FENCE_I -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, Y),
       // kill pipeline and refetch instructions since the pipeline will be holding stall instructions.
-      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N)
+      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N),
       // we are already sequentially consistent, so no need to honor the fence instruction
+      SFENCE_VMA -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N)
     )
   val decode_ops = ListLookup(io.instBundleIn.inst, dummy, decodeops)
   val (inst_valid: Bool) :: br_Type :: op1Sel :: op2Sel :: (rs1Ren: Bool) :: (rs2Ren: Bool) :: aluOp :: fuType :: (isWordOp: Bool) :: wbSel :: (wbEn: Bool) :: (memEn: Bool) :: memOp :: memMask :: csrOp :: (isFence: Bool) :: Nil = decode_ops
@@ -161,7 +184,8 @@ class Decode extends Module {
       IMM_UTYPE -> extractImm(new UTypeInstruction),
       IMM_JTYPE -> extractImm(new JTypeInstruction),
       IMM_BTYPE -> extractImm(new BTypeInstruction),
-      IMM_ZEXT -> extractImm(new CSRIInstruction)
+      IMM_ZEXT -> extractImm(new CSRIInstruction),
+      IMM_ZERO -> 0.U
     ))
   io.decode2Exe.instValid := inst_valid & io.instBundleIn.instValid
   io.decode2Exe.BrType := br_Type

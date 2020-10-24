@@ -617,7 +617,7 @@ class CSRFile extends Module {
   // ================== Exception Handler Entry Ends ===================
 
   // Decide whether to enable the Sv39
-  io.csrMMU.enableSv39 := (privMode =/= M || satp(63, 60) === 8.U)
+  io.csrMMU.enableSv39 := (privMode =/= M && satp(63, 60) === 8.U)
   io.csrMMU.asid := satp(59,44)
   io.csrMMU.mxr := mstatus.asTypeOf(new mstatus).MXR
   io.csrMMU.sum := mstatus.asTypeOf(new mstatus).SUM

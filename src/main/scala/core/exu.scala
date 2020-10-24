@@ -101,13 +101,20 @@ class EXU extends Module {
   val mem = Module(new MEM)
   io.toclint <> mem.io.toclint
   io.mem2dmem <> mem.io.mem2dmem
-  mem.io.MemType := io.decode2Exe.MemType
-  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid
-  mem.io.MemOp := io.decode2Exe.MemOp
-  mem.io.baseAddr := op1
-  mem.io.imm := op2
-  mem.io.R2Val := io.decode2Exe.R2val
-  mem.io.exceInfoIn := io.decode2Exe.exceInfo
+  // TODO: a real MMU
+  mem.io.mem2mmu.respPAddr := mem.io.mem2mmu.reqVAddr - 0x80000000L.U
+  mem.io.mem2mmu.respValid := true.B
+  mem.io.mem2mmu.respPageFault := false.B
+
+  mem.io.instPC           := io.instBundleIn.inst_pc
+  mem.io.MemType          := io.decode2Exe.MemType
+  mem.io.fuOp             := io.decode2Exe.ALUOp
+  mem.io.isMemOp          := io.decode2Exe.isMemOp & io.instBundleIn.instValid
+  mem.io.MemOp            := io.decode2Exe.MemOp
+  mem.io.baseAddr         := op1
+  mem.io.imm              := op2
+  mem.io.R2Val            := io.decode2Exe.R2val
+  mem.io.exceInfoIn       := io.decode2Exe.exceInfo
   io.exe2Commit.memResult := mem.io.memResult
   
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq

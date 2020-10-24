@@ -65,7 +65,9 @@ class SyncReadWriteMem extends Module {
   ram.io.clk := io.clk
 //  io.data_valid := RegNext(!io.reset)
   val ack = Reg(Bool())
-
+  io.mem2dmem.memWrDone := true.B
+  val isMMIO = MMIO.inMMIORange(io.mem2dmem.memAddr)
+    // Fake UART
   when(ack){
     ack := false.B
   }.elsewhen (io.mem2dmem.memRreq && !ack) {
@@ -73,11 +75,12 @@ class SyncReadWriteMem extends Module {
   }.otherwise {
     ack := false.B
   }
-  ram.io.rIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U, io.mem2dmem.memAddr(63, 3), 0.U)
+  ram.io.rIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U & !isMMIO, io.mem2dmem.memAddr(63, 3), 0.U)
   io.mem2dmem.memRdata := ram.io.rdata
-  ram.io.wIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U, io.mem2dmem.memAddr(63, 3), 0.U)
+  ram.io.wIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U & !isMMIO, io.mem2dmem.memAddr(63, 3), 0.U)
   ram.io.wdata := io.mem2dmem.memWdata
   ram.io.wmask := io.mem2dmem.memWmask
   ram.io.wen := io.mem2dmem.memWen
   io.mem2dmem.memRvalid := ack
+  
 }
