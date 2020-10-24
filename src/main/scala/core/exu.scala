@@ -99,9 +99,10 @@ class EXU extends Module {
   // Load / Store instruction
   // Can be exceptions
   val mem = Module(new MEM)
-  io.toclint := mem.io.toclint
-  io.mem2dmem := mem.io.mem2dmem
-  mem.io.isMemOp := io.decode2Exe.isMemOp
+  io.toclint <> mem.io.toclint
+  io.mem2dmem <> mem.io.mem2dmem
+  mem.io.MemType := io.decode2Exe.MemType
+  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid
   mem.io.MemOp := io.decode2Exe.MemOp
   mem.io.baseAddr := op1
   mem.io.imm := op2

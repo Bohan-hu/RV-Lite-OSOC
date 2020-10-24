@@ -28,7 +28,7 @@ class Top extends Module {
   ifu.io.rdata := imem.io.rdata
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := csrFile.io.ifRedir
-  ifu.io.pause := exu.io.pauseReq  // Todo: Modify as 5 stage pipeline
+  ifu.io.pause := exu.io.pauseReq
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out

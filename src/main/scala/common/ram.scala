@@ -73,9 +73,9 @@ class SyncReadWriteMem extends Module {
   }.otherwise {
     ack := false.B
   }
-  ram.io.rIdx := io.mem2dmem.memAddr(63, 3)
+  ram.io.rIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U, io.mem2dmem.memAddr(63, 3), 0.U)
   io.mem2dmem.memRdata := ram.io.rdata
-  ram.io.wIdx := io.mem2dmem.memAddr(63, 3)
+  ram.io.wIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U, io.mem2dmem.memAddr(63, 3), 0.U)
   ram.io.wdata := io.mem2dmem.memWdata
   ram.io.wmask := io.mem2dmem.memWmask
   ram.io.wen := io.mem2dmem.memWen

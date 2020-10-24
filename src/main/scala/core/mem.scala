@@ -155,10 +155,10 @@ class MEM extends Module {
   }
 
   // No prior Exception happens, and the op type is read, notice the signal is for dmem
-  val memRead = io.isMemOp & io.MemOp === MEM_READ & !isMMIO & !io.exceInfoIn.valid
+  val memRead = io.isMemOp & io.MemOp === MEM_READ & !io.exceInfoIn.valid
   
-  io.mem2dmem.memRreq := memRead
-  val memPending = !io.mem2dmem.memRvalid & memRead
+  io.mem2dmem.memRreq := memRead & !isMMIO
+  val memPending = !io.mem2dmem.memRvalid & io.mem2dmem.memRreq
   when(memRead) {
 //    printf("memRAddr = 0x%x, memRdata = 0x%x\n", io.exe2Mem.aluResult, memRdata)
   }
@@ -196,7 +196,7 @@ class MEM extends Module {
   io.mem2dmem.memAddr := accessPAddr
   io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, io.R2Val)
   io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, accessVAddr))
-  io.mem2dmem.memWen := memWrite
+  io.mem2dmem.memWen := memWrite & !isMMIO
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
   io.pauseReq := memPending
 
