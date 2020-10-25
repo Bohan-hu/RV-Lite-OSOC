@@ -625,7 +625,13 @@ class CSRFile extends Module {
   io.csrMMU.tsr := mstatus.asTypeOf(new mstatus).TSR
   io.csrMMU.tvm := mstatus.asTypeOf(new mstatus).TVM
   io.csrMMU.satpPPN := satp(43,0)
-  io.csrMMU.enableLSVM := false.B // TODO!!!
+
+  // Apply MPRV Rules
+  when(mstatus.asTypeOf(new mstatus).MPRV && satp(63, 60) === 8.U && (mstatus.asTypeOf(new mstatus).MPP =/= M)) {
+    io.csrMMU.enableLSVM := true.B
+  }.otherwise {
+    io.csrMMU.enableLSVM := io.csrMMU.enableSv39
+  }
 
   // To Decoder
   io.intCtrl.mie := mie

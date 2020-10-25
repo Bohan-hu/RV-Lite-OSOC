@@ -47,10 +47,10 @@ class PTWIO extends Bundle {
   val mxr = Input(Bool())
   // DMem request
   val memReq = new DMEMReq
-  // TLB Query
-  val tlbQuery = new TLBQuery
-  // TLB Update
-  val tlbUpdate = Flipped(new TLBUpdate)
+  // TODO: TLB Query
+  val tlbQuery = Flipped(new TLBQuery)
+  // TODO: TLB Update
+  // val tlbUpdate = Flipped(new TLBUpdate)
 
   // TODO: PMP Access Exception
 }
@@ -58,15 +58,18 @@ class PTWIO extends Bundle {
 class PTW(isDPTW: Boolean) extends Module {
   val io = IO(new PTWIO)
   val sIDLE :: sWAIT_PTE_Entry :: sHANDLE_PTE_Entry :: sERROR :: sWAIT_AFTER_FLUSH :: Nil = Enum(5)
-  val pteLevelReg = Reg(UInt(2.W))
-  val stateReg = Reg(UInt())
-  val ptrReg = Reg(UInt(64.W))
+  val pteLevelReg        = Reg(UInt(2.W))
+  val stateReg           = Reg(UInt())
+  val ptrReg             = Reg(UInt(64.W))
   val isGlobalMappingReg = Reg(Bool())
-  val pteReg = Reg(UInt(64.W)).asTypeOf(new PTE)
-  io.respValid := false.B
-  io.memReq.rreq := false.B
-  io.pageFault := false.B
-  io.busy := stateReg =/= sIDLE
+  val pteReg             = Reg(UInt(64.W)).asTypeOf(new PTE)
+  io.respValid           := false.B
+  io.memReq.rreq         := false.B
+  io.pageFault           := false.B
+  io.busy                := stateReg =/= sIDLE
+  io.tlbQuery.vaddr      := io.reqVAddr
+  io.respPaddr           := 0.U
+  // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled
   switch(stateReg) {
@@ -74,11 +77,19 @@ class PTW(isDPTW: Boolean) extends Module {
       pteLevelReg := 1.U
       // Data request has higher priority
       if (isDPTW) {
+        when(!io.enableSv39 | !io.translation_ls_en) {
+          io.respValid := true.B
+          io.respPaddr := io.reqVAddr
+        }
         when(io.enableSv39 && io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
           stateReg := sWAIT_PTE_Entry
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
         }
       } else {
+        when(!io.enableSv39) {
+          io.respValid := true.B
+          io.respPaddr := io.reqVAddr
+        }
         when(io.enableSv39 && io.reqReady && !io.tlbQuery.hit) { // Instruction Request
           stateReg := sWAIT_PTE_Entry
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
@@ -116,6 +127,11 @@ class PTW(isDPTW: Boolean) extends Module {
           given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
           If not, stop and raise a page-fault exception corresponding to the original access type.
           */
+          switch(pteLevelReg) {
+            is(1.U) { io.respPaddr := Cat(pteReg.ppn2, io.reqVAddr(29,0)) }
+            is(2.U) { io.respPaddr := Cat(pteReg.ppn2, pteReg.ppn1, io.reqVAddr(20,0)) }
+            is(3.U) { io.respPaddr := Cat(pteReg.ppn2, pteReg.ppn1, pteReg.ppn0, io.reqVAddr(11,0)) }
+          }
           if (isDPTW) { // isDPTW, check the following conditions
             when(pteReg.A && (pteReg.R || (pteReg.X && io.mxr))) {
               stateReg := sIDLE
@@ -175,6 +191,7 @@ class PTW(isDPTW: Boolean) extends Module {
       }
     }
     is(sERROR) {
+      io.respValid := true.B
       io.pageFault := true.B
       stateReg := sIDLE
       pteLevelReg := 1.U

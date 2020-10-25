@@ -1,11 +1,14 @@
 package mmu
 import chisel3._
+import _root_.core.MEM2MMU
+import _root_.core.CSRMMU
+import chisel3.stage.ChiselStage
 class MMUIO extends Bundle {
-  val addrReq = Input(Bool())
-  val vAddr = Input(UInt(64.W))
-  val storeReq = Input(Bool())
-  val enableSv39 = Input(Bool())
-  val enableLSPaged = Input(Bool())
+  val mem2mmu = Flipped(new MEM2MMU)
+  val isStore = Input(Bool())
+  val flush = Input(Bool())
+  val dmemreq = new DMEMReq
+  val csr2mmu = Flipped(new CSRMMU)
 }
 // LSU send VAddr to MMU, MMU returns the PAddr with valid signal
 // LSU then use the translated address to access the memory
@@ -18,7 +21,39 @@ class MMUIO extends Bundle {
 
 class MMU (isDMMU: Boolean)extends Module {
   val io = IO(new MMUIO)
-  val tlb = Module(new TLB)
+  // TODO： Add TLB Here
+  // val tlb = Module(new TLB)
+  val ptw = Module(new PTW(isDMMU))
+  // PTW <> MMU
+  ptw.io.reqReady          := io.mem2mmu.reqReady
+  ptw.io.reqVAddr          := io.mem2mmu.reqVAddr
+  io.mem2mmu.respPAddr     := ptw.io.respPaddr
+  io.mem2mmu.respValid     := ptw.io.respValid
+  io.mem2mmu.respPageFault := ptw.io.pageFault
+  
+  // Fake TLB(always miss)
+  ptw.io.tlbQuery.hit := false.B
+  ptw.io.tlbQuery.paddr := 0.U
+  
+  // CSR ----> PTW Signals
+  ptw.io.enableSv39        := io.csr2mmu.enableSv39
+  ptw.io.translation_ls_en := io.csr2mmu.enableLSVM
+  ptw.io.satp_PPN          := io.csr2mmu.satpPPN
+  ptw.io.mxr               := io.csr2mmu.mxr
+  ptw.io.satp_ASID         := io.csr2mmu.asid
+  
+  // ptw ctrl
+  ptw.io.flush             := io.flush
+  if(!isDMMU) {
+    ptw.io.reqIsStore      := io.isStore
+  } else {
+    ptw.io.reqIsStore      := false.B
+  }
+  io.dmemreq <> ptw.io.memReq
+  
+}
 
-
+object MMU extends App {
+  val stage = new ChiselStage
+  stage.emitVerilog(new MMU(false))
 }
