@@ -84,7 +84,7 @@ class PTW(isDPTW: Boolean) extends Module {
       if (isDPTW) {
         when(!io.enableSv39 | !io.translation_ls_en) {
           io.respValid := true.B
-          io.respPaddr := io.reqVAddr
+          io.respPaddr := io.reqVAddr - 0x80000000L.U
         }
         when(io.enableSv39 && io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
           stateReg := sWAIT_PTE_Entry
@@ -93,7 +93,7 @@ class PTW(isDPTW: Boolean) extends Module {
       } else {
         when(!io.enableSv39) {
           io.respValid := true.B
-          io.respPaddr := io.reqVAddr
+          io.respPaddr := io.reqVAddr - 0x80000000L.U
         }
         when(io.enableSv39 && io.reqReady && !io.tlbQuery.hit) { // Instruction Request
           stateReg := sWAIT_PTE_Entry

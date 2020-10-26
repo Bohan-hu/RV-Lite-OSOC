@@ -40,6 +40,7 @@ class Top extends Module {
   // DECODER <> EXU
   exu.io.instBundleIn := decoder.io.instBundleOut
   exu.io.decode2Exe := decoder.io.decode2Exe
+  exu.io.csr2mmu <> csrFile.io.csrMMU
 
   // MEM <> WB / MEM <> dmem
   wb.io.instBundleIn := exu.io.instBundleOut

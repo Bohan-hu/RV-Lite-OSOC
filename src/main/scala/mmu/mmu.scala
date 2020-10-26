@@ -3,11 +3,12 @@ import chisel3._
 import _root_.core.MEM2MMU
 import _root_.core.CSRMMU
 import chisel3.stage.ChiselStage
+import _root_.core.MEM2dmem
 class MMUIO extends Bundle {
   val mem2mmu = Flipped(new MEM2MMU)
   val isStore = Input(Bool())
   val flush = Input(Bool())
-  val dmemreq = new DMEMReq
+  val dmemreq = new MEM2dmem
   val csr2mmu = Flipped(new CSRMMU)
 }
 // LSU send VAddr to MMU, MMU returns the PAddr with valid signal
@@ -19,7 +20,7 @@ class MMUIO extends Bundle {
 // LSU AddrTranslate -> Send Load -> Get response / Exception
 // If LSU is busy, inst req is blocked
 
-class MMU (isDMMU: Boolean)extends Module {
+class MMU (isDMMU: Boolean) extends Module {
   val io = IO(new MMUIO)
   // TODO： Add TLB Here
   // val tlb = Module(new TLB)

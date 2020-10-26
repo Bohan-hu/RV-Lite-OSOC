@@ -3,7 +3,7 @@ package core
 import chisel3._
 import chisel3.util._
 import common.OpConstants._
-
+import mmu._
 class Exe2Mem extends Bundle {
   val aluResult = UInt(64.W)
   val RdNum     = UInt(5.W)
@@ -48,6 +48,7 @@ class EXUIO extends Bundle {
   val instBundleOut = Output(new InstBundle)
   val mem2dmem = new MEM2dmem
   val toclint  = Flipped(new MEMCLINT)
+  val csr2mmu = Flipped(new CSRMMU)
 }
 
 class EXU extends Module {
@@ -99,12 +100,13 @@ class EXU extends Module {
   // Load / Store instruction
   // Can be exceptions
   val mem = Module(new MEM)
+  val dmmu = Module(new MMU(isDMMU = true))
   io.toclint <> mem.io.toclint
-  io.mem2dmem <> mem.io.mem2dmem
-  // TODO: a real MMU
-  mem.io.mem2mmu.respPAddr := mem.io.mem2mmu.reqVAddr - 0x80000000L.U
-  mem.io.mem2mmu.respValid := true.B
-  mem.io.mem2mmu.respPageFault := false.B
+  // io.mem2dmem <> mem.io.mem2dmem
+  dmmu.io.mem2mmu <> mem.io.mem2mmu
+  dmmu.io.isStore := mem.io.MemType === MEM_AMO || mem.io.MemType === MEM_WRITE
+  dmmu.io.flush := false.B // TODO
+  dmmu.io.csr2mmu <> io.csr2mmu
 
   mem.io.instPC           := io.instBundleIn.inst_pc
   mem.io.MemType          := io.decode2Exe.MemType
@@ -117,6 +119,20 @@ class EXU extends Module {
   mem.io.exceInfoIn       := io.decode2Exe.exceInfo
   io.exe2Commit.memResult := mem.io.memResult
   
+  io.mem2dmem.memRreq       := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
+  io.mem2dmem.memWdata      := mem.io.mem2dmem.memWdata
+  io.mem2dmem.memWen        := mem.io.mem2dmem.memWen
+  io.mem2dmem.memWmask      := mem.io.mem2dmem.memWmask
+  io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, mem.io.mem2dmem.memAddr, mem.io.mem2dmem.memAddr)
+  dmmu.io.dmemreq.memRvalid := io.mem2dmem.memRvalid
+  dmmu.io.dmemreq.memWrDone := false.B
+  dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata
+  mem.io.mem2dmem.memWrDone := io.mem2dmem.memWrDone
+  mem.io.mem2dmem.memRvalid := io.mem2dmem.memRvalid
+  dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata
+  mem.io.mem2dmem.memRdata  := io.mem2dmem.memRdata
+
+
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq
   io.exe2Commit.exceInfo := mem.io.exceInfoOut
 

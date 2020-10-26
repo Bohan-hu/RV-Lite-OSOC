@@ -16,27 +16,25 @@ class MemReq extends Bundle {
 // A wrapper module 
 class LSUIO extends Bundle {
   val memIO = new MEMIO
-  val ptwIO = new PTWIO
   val lsu2Dmem = new MEM2dmem
 }
 
 class LSU extends Module {
   val io = IO(new LSUIO())
   val mem = Module(new MEM)
-  val dptw = Module(new PTW(isDPTW = true))
-  mem.io <> io.memIO
-  dptw.io <> io.ptwIO
+  val dmmu = Module(new MMU(isDMMU = true))
+  
   val memio = mem.io.mem2dmem
-  val ptwio = dptw.io.memReq
-  io.lsu2Dmem.memRreq := memio.memRreq | ptwio.memRreq
-  io.lsu2Dmem.memWdata := memio.memWdata
-  io.lsu2Dmem.memWen := memio.memWen
-  io.lsu2Dmem.memWmask := memio.memWmask
-  memio.memWrDone := io.lsu2Dmem.memWrDone
-  io.lsu2Dmem.memAddr := Mux(ptwio.memRreq, ptwio.memAddr, memio.memAddr)
-  memio.memRvalid := io.lsu2Dmem.memRvalid
-  ptwio.memRvalid := io.lsu2Dmem.memRvalid
-  ptwio.memWrDone := false.B
+  val mmuio = dmmu.io.dmemreq
+  io.lsu2Dmem.memRreq       := memio.memRreq | mmuio.memRreq
+  io.lsu2Dmem.memWdata      := memio.memWdata
+  io.lsu2Dmem.memWen        := memio.memWen
+  io.lsu2Dmem.memWmask      := memio.memWmask
+  memio.memWrDone           := io.lsu2Dmem.memWrDone
+  io.lsu2Dmem.memAddr       := Mux(mmuio.memRreq, mmuio.memAddr, memio.memAddr)
+  memio.memRvalid           := io.lsu2Dmem.memRvalid
+  mmuio.memRvalid           := io.lsu2Dmem.memRvalid
+  mmuio.memWrDone           := false.B
 }
 
 object LSU extends App {

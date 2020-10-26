@@ -561,6 +561,7 @@ class CSRFile extends Module {
       mstatus_new.SIE := false.B
       mstatus_new.SPIE := mstatus.asTypeOf(new mstatus).SIE
       mstatus_new.SPP := privMode(0)
+      mstatus := mstatus_new.asUInt()
       scause := io.commitCSR.exceptionInfo.cause
       sepc := io.commitCSR.exceptionInfo.epc
       stval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
@@ -606,7 +607,7 @@ class CSRFile extends Module {
   // ================== Exception Handler Entry Begins ===================
   val handlerBase = Wire(UInt(64.W))
   handlerBase := Cat(mtvec(63, 2), 0.U(2.W))
-  when(privMode === S) {
+  when(nextPrivLevel === S) {
     handlerBase := Cat(stvec(63, 2), 0.U(2.W))
   }
   val handlerEntry = WireInit(handlerBase)

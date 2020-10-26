@@ -141,6 +141,7 @@ object DataTypesUtils {
 class MEM extends Module {
   val io = IO(new MEMIO)
   val accessVAddr = io.baseAddr + io.imm
+
   val accessPAddr = accessVAddr - 0x80000000L.U   // TODO: Handle the Translation
   val isMMIO = MMIO.inMMIORange(accessVAddr)
   // TODO:
@@ -304,7 +305,9 @@ class MEM extends Module {
 
   // MMIO Flag
   BoringUtils.addSource(RegNext(io.isMemOp & isMMIO), "difftestIsMMIO")
-
+  when(accessVAddr === 0x807FF000L.U & isStore) {
+    printf("Writing to &SATP: %x\n", io.R2Val)
+  }
   // LSU 
   // IDLE -> ReqPADDR -> OP -> IDLE
   // If is SC and SC will fail, write back the failing code 

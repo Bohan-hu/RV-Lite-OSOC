@@ -9,6 +9,12 @@ class InstBundle extends Bundle {
   val instValid = Bool()
 }
 
+// If IF is waiting for a instruction, and received a flush request, then go to recover state
+// PC saves the new pc, then wait for rvalid
+// We set a register for pending flush request, if we are busy, and is ready to transfer to a IDLE
+// We will take a look at pending flush flag, if the flag is set, we will not propogate 'valid' signal to the following stages
+
+// In AXI interface, we leave 2 ports, 1 for inst req, 1 for mem req
 class IFUIO extends Bundle {
   val inst_pc = Output(UInt(64.W))
   val inst_req = Output(Bool())
