@@ -2,6 +2,7 @@ package mmu
 
 import chisel3._
 import chisel3.util._
+import _root_.core.MEM2dmem
 
 class PTE extends Bundle {
   val reversed = UInt(10.W)
@@ -46,7 +47,7 @@ class PTWIO extends Bundle {
   val satp_PPN = Input(UInt(44.W))
   val mxr = Input(Bool())
   // DMem request
-  val memReq = new DMEMReq
+  val memReq = new MEM2dmem
   // TODO: TLB Query
   val tlbQuery = Flipped(new TLBQuery)
   // TODO: TLB Update
@@ -64,11 +65,15 @@ class PTW(isDPTW: Boolean) extends Module {
   val isGlobalMappingReg = Reg(Bool())
   val pteReg             = Reg(UInt(64.W)).asTypeOf(new PTE)
   io.respValid           := false.B
-  io.memReq.rreq         := false.B
+  io.memReq.memRreq      := false.B
   io.pageFault           := false.B
   io.busy                := stateReg =/= sIDLE
   io.tlbQuery.vaddr      := io.reqVAddr
   io.respPaddr           := 0.U
+  io.memReq.memWdata     := 0.U
+  io.memReq.memWen       := 0.U
+  io.memReq.memWmask     := 0.U
+  io.memReq.memAddr      := ptrReg
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled
@@ -97,13 +102,13 @@ class PTW(isDPTW: Boolean) extends Module {
       }
     }
     is(sWAIT_PTE_Entry) {
-      io.memReq.rreq := true.B
+      io.memReq.memRreq := true.B
       when(io.flush) {
         stateReg := sWAIT_AFTER_FLUSH
       }
-      when(io.memReq.rvalid) {
+      when(io.memReq.memRvalid) {
         stateReg := sHANDLE_PTE_Entry
-        pteReg := io.memReq.rdata.asTypeOf(new PTE)
+        pteReg := io.memReq.memRdata.asTypeOf(new PTE)
       }
     }
     is(sHANDLE_PTE_Entry) {
@@ -185,7 +190,7 @@ class PTW(isDPTW: Boolean) extends Module {
       }
     }
     is(sWAIT_AFTER_FLUSH) { // Recover from a flush
-      when(io.memReq.rvalid) {
+      when(io.memReq.memRvalid) {
         stateReg := sIDLE
         pteLevelReg := 1.U
       }

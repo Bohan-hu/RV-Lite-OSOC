@@ -3,7 +3,9 @@ package core
 import chisel3._
 import chisel3.util.Decoupled
 import defines._
-
+import mmu.DMEMReq
+import mmu._
+import chisel3.stage.ChiselStage
 class MemReq extends Bundle {
   val addr = UInt(64.W)
   val mask = UInt(8.W)
@@ -11,16 +13,33 @@ class MemReq extends Bundle {
   val isStore = Bool()
 }
 
+// A wrapper module 
 class LSUIO extends Bundle {
-  val srcA = Input(UInt(64.W))
-  val srcB = Input(UInt(64.W))
-  val ext_Imm = Input(UInt(64.W))
-  val addrOut = Input(UInt(64.W))
-  val memReq = Decoupled(new MemReq)
-  val memResp = Decoupled(UInt(64.W))
+  val memIO = new MEMIO
+  val ptwIO = new PTWIO
+  val lsu2Dmem = new MEM2dmem
 }
 
 class LSU extends Module {
-  val io = new LSUIO()
+  val io = IO(new LSUIO())
+  val mem = Module(new MEM)
+  val dptw = Module(new PTW(isDPTW = true))
+  mem.io <> io.memIO
+  dptw.io <> io.ptwIO
+  val memio = mem.io.mem2dmem
+  val ptwio = dptw.io.memReq
+  io.lsu2Dmem.memRreq := memio.memRreq | ptwio.memRreq
+  io.lsu2Dmem.memWdata := memio.memWdata
+  io.lsu2Dmem.memWen := memio.memWen
+  io.lsu2Dmem.memWmask := memio.memWmask
+  memio.memWrDone := io.lsu2Dmem.memWrDone
+  io.lsu2Dmem.memAddr := Mux(ptwio.memRreq, ptwio.memAddr, memio.memAddr)
+  memio.memRvalid := io.lsu2Dmem.memRvalid
+  ptwio.memRvalid := io.lsu2Dmem.memRvalid
+  ptwio.memWrDone := false.B
+}
 
+object LSU extends App {
+  val stage = new ChiselStage
+  stage.emitVerilog(new LSU)
 }
