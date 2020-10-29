@@ -3,6 +3,8 @@ import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
 import common.SyncReadWriteMem
+import mmu._
+
 class Top extends Module {
   val io = IO(new Bundle() {
     val pc = Output(UInt(64.W))
@@ -10,6 +12,7 @@ class Top extends Module {
   })
   val ifu = Module(new IFU)
   val imem = Module(new common.SyncReadOnlyMem)
+  val immu = Module(new MMU(isDMMU = false))
   val dmem = Module(new common.SyncReadWriteMem)
   val decoder = Module(new Decode)
   val exu = Module(new EXU)
@@ -22,19 +25,30 @@ class Top extends Module {
   imem.io.reset := reset.asBool()
   imem.io.pause := exu.io.pauseReq
   // IFU <> IMEM
-  imem.io.rreq := ifu.io.inst_req
-  imem.io.raddr := (ifu.io.inst_pc - 0x80000000L.U(64.W))
-  ifu.io.rvalid:= imem.io.data_valid
-  ifu.io.rdata := imem.io.rdata
+
+  ifu.io.ifu2dmem.memRvalid:= imem.io.data_valid
+  ifu.io.ifu2dmem.memRdata := imem.io.rdata
+  ifu.io.ifu2dmem.memWrDone := false.B
+  immu.io.dmemreq.memRvalid:= imem.io.data_valid
+  immu.io.dmemreq.memRdata := imem.io.rdata
+  immu.io.dmemreq.memWrDone := false.B
+  immu.io.isStore := false.B
+  immu.io.flush := false.B    // TODO
+  immu.io.csr2mmu <> csrFile.io.csrMMU
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := csrFile.io.ifRedir
   ifu.io.pause := exu.io.pauseReq
+  ifu.io.ifu2mmu <> immu.io.mem2mmu
+
+  imem.io.rreq := ifu.io.ifu2dmem.memRreq | immu.io.dmemreq.memRreq
+  imem.io.raddr := Mux(immu.io.dmemreq.memRreq, immu.io.dmemreq.memAddr, ifu.io.ifu2dmem.memAddr)
+  
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifu.io.inst_out
   decoder.io.intCtrl <> csrFile.io.intCtrl
   decoder.io.regfileIO <> regfile.io.rdPort
-  decoder.io.exceptionInfoIF <> ifu.io.exceInfo
+  decoder.io.exceptionInfoIF <> ifu.io.exceInfoOut
   decoder.io.PLIC_SEI := false.B
 
   // DECODER <> EXU

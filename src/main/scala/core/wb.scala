@@ -26,7 +26,7 @@ class WB extends Module {
   io.csrRw.instRd := io.regfileWrite.waddr
   io.csrRw.instValid := io.instBundleIn.instValid
   io.csrRw.instRs := io.instBundleIn.inst.asTypeOf(new CSRRInstruction).rs1
-
+  io.csrRw.inst := io.instBundleIn.inst
   io.instBundleOut := io.instBundleIn
   io.regfileWrite.waddr := io.exe2Commit.RdNum
   io.regfileWrite.wen := io.exe2Commit.RFWen & io.instBundleIn.instValid & ~io.exe2Commit.exceInfo.valid

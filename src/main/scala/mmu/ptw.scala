@@ -88,7 +88,7 @@ class PTW(isDPTW: Boolean) extends Module {
         }
         when(io.enableSv39 && io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
           stateReg := sWAIT_PTE_Entry
-          ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
+          ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
       } else {
         when(!io.enableSv39) {
@@ -97,7 +97,7 @@ class PTW(isDPTW: Boolean) extends Module {
         }
         when(io.enableSv39 && io.reqReady && !io.tlbQuery.hit) { // Instruction Request
           stateReg := sWAIT_PTE_Entry
-          ptrReg := Cat(io.satp_PPN, io.reqVAddr(63, 30), 0.U(3.W)) // Root Page Table PPN
+          ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
       }
     }

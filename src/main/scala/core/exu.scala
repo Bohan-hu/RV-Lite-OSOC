@@ -123,7 +123,7 @@ class EXU extends Module {
   io.mem2dmem.memWdata      := mem.io.mem2dmem.memWdata
   io.mem2dmem.memWen        := mem.io.mem2dmem.memWen
   io.mem2dmem.memWmask      := mem.io.mem2dmem.memWmask
-  io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, mem.io.mem2dmem.memAddr, mem.io.mem2dmem.memAddr)
+  io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
   dmmu.io.dmemreq.memRvalid := io.mem2dmem.memRvalid
   dmmu.io.dmemreq.memWrDone := false.B
   dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata

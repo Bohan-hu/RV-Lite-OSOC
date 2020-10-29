@@ -35,11 +35,34 @@ class SyncReadOnlyMem extends Module {
   })
   val ram = Module(new RAMHelper)
   ram.io.clk := io.clk
-  io.data_valid := RegNext(!io.reset)
-  val raddr = RegInit(0.U)
-  raddr := Mux(io.pause, raddr, io.raddr)
-  ram.io.rIdx := Mux(io.pause, raddr(63,3), io.raddr(63, 3))
-  io.rdata := Mux(raddr(2), ram.io.rdata(63, 32), ram.io.rdata(31, 0))
+  // io.data_valid := RegNext(RegNext(RegNext(!io.reset & io.rreq)))
+  val sIDLE :: sHOLD :: sVALID :: Nil = Enum(3)
+  val state = RegInit(sIDLE)
+  val addrReg = RegInit(0.U)
+  val cnt = Reg(UInt(5.W))
+  io.rdata := 0.U
+  io.data_valid := false.B
+  switch(state) {
+    is(sIDLE) {
+      when(io.rreq) {
+        addrReg := io.raddr
+        state := sHOLD
+      }
+    }
+    is(sHOLD) {
+      cnt := cnt + 1.U
+      when(cnt === 5.U) {
+        state := sVALID
+        cnt := 0.U
+      }
+    }
+    is(sVALID) {
+      io.data_valid := true.B
+      io.rdata := Mux(addrReg(2), ram.io.rdata(63, 32), ram.io.rdata(31, 0))
+      state := sIDLE
+    }
+  }
+  ram.io.rIdx := addrReg(63,3)
   ram.io.wIdx := 0.U
   ram.io.wdata := 0.U
   ram.io.wmask := 0.U
