@@ -63,7 +63,9 @@ class PTW(isDPTW: Boolean) extends Module {
   val stateReg           = Reg(UInt())
   val ptrReg             = Reg(UInt(64.W))
   val isGlobalMappingReg = Reg(Bool())
-  val pteReg             = Reg(UInt(64.W)).asTypeOf(new PTE)
+  val pteReg             = Reg(UInt(64.W))
+  val pteConverted       = Wire(new PTE)
+  pteConverted           := pteReg.asTypeOf(new PTE)
   io.respValid           := false.B
   io.memReq.memRreq      := false.B
   io.pageFault           := false.B
@@ -108,7 +110,7 @@ class PTW(isDPTW: Boolean) extends Module {
       }
       when(io.memReq.memRvalid) {
         stateReg := sHANDLE_PTE_Entry
-        pteReg := io.memReq.memRdata.asTypeOf(new PTE)
+        pteReg := io.memReq.memRdata
       }
     }
     is(sHANDLE_PTE_Entry) {
@@ -116,49 +118,52 @@ class PTW(isDPTW: Boolean) extends Module {
         stateReg := sIDLE
         pteLevelReg := 1.U
       }
-      when(pteReg.G) {
+      when(pteConverted.G) {
         isGlobalMappingReg := true.B
       }
       /* If PTE.v = 0, or PTE.r = 0 and PTE.w = 1,
          Stop and raise a page-fault exception corresponding to the original access type
       */
-      when(!pteReg.V || (!pteReg.R && pteReg.W)) {
+      when(!pteConverted.V || (!pteConverted.R && pteConverted.W)) {
         stateReg := sERROR
       }.otherwise {
-        when(pteReg.R || pteReg.X) { // If pte.r = 1 or pte.x = 1
+        when(pteConverted.R || pteConverted.X) { // If pte.r = 1 or pte.x = 1
           /*
           A leaf PTE has been found.
           Determine if the requested memory access is allowed by the pte.r, pte.w, pte.x, and pte.u bits,
           given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
           If not, stop and raise a page-fault exception corresponding to the original access type.
           */
+          // TODO: Handle the 80000000L in crossbars(IMPORTANT)
           switch(pteLevelReg) {
-            is(1.U) { io.respPaddr := Cat(pteReg.ppn2, io.reqVAddr(29,0)) }
-            is(2.U) { io.respPaddr := Cat(pteReg.ppn2, pteReg.ppn1, io.reqVAddr(20,0)) }
-            is(3.U) { io.respPaddr := Cat(pteReg.ppn2, pteReg.ppn1, pteReg.ppn0, io.reqVAddr(11,0)) }
+            is(1.U) { io.respPaddr := Cat(pteConverted.ppn2, io.reqVAddr(29,0)) - 0x80000000L.U }
+            is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0)) - 0x80000000L.U}
+            is(3.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, pteConverted.ppn0, io.reqVAddr(11,0)) -  0x80000000L.U}
           }
           if (isDPTW) { // isDPTW, check the following conditions
-            when(pteReg.A && (pteReg.R || (pteReg.X && io.mxr))) {
+            // TODO: when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
+            when((pteConverted.R || (pteConverted.X && io.mxr))) {
               stateReg := sIDLE
               io.respValid := true.B
               pteLevelReg := 1.U
             }.otherwise {
               stateReg := sERROR
             }
-            when(io.reqIsStore && !pteReg.W) { // Is store, but not writable
+            when(io.reqIsStore && !pteConverted.W) { // Is store, but not writable
               stateReg := sERROR
             }
-            when(!pteReg.A ||
-              (io.reqIsStore && !pteReg.D)) { // pte.a = 0,
-              // or if the memory access is a store and pte.d = 0
-              stateReg := sERROR
-            }
+            // TODO: Recover the condition
+            // when(!pteConverted.A ||
+            //   (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
+            //   // or if the memory access is a store and pte.d = 0
+            //   stateReg := sERROR
+            // }
           } else {  // is IPTW, check the following conditions
             /*
             Attempting to fetch an instruction from a page that does not have execute permissions
             raises a fetch page-fault exception
              */
-            when(!pteReg.X || !pteReg.A) { // Instr, not eXecutable
+            when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
@@ -168,19 +173,19 @@ class PTW(isDPTW: Boolean) extends Module {
           }
           // 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
           // exception.
-          when((pteLevelReg === 1.U && Cat(pteReg.ppn2, pteReg.ppn1) =/= 0.U) ||
-            (pteLevelReg === 2.U && pteReg.ppn1 =/= 0.U)) {
+          when((pteLevelReg === 1.U && Cat(pteConverted.ppn2, pteConverted.ppn1) =/= 0.U) ||
+            (pteLevelReg === 2.U && pteConverted.ppn1 =/= 0.U)) {
             stateReg := sERROR
           }
         }.otherwise { // the PTE is a pointer to the next level of the page table
           stateReg := sWAIT_PTE_Entry
           when(pteLevelReg === 1.U) {
             pteLevelReg := 2.U
-            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(29, 21), 0.U(3.W)) // VPN 1
+            ptrReg := Cat(pteConverted.getPPN, io.reqVAddr(29, 21), 0.U(3.W)) // VPN 1
           }
           when(pteLevelReg === 2.U) {
             pteLevelReg := 3.U
-            ptrReg := Cat(pteReg.getPPN, io.reqVAddr(20, 12), 0.U(3.W)) // VPN 2
+            ptrReg := Cat(pteConverted.getPPN, io.reqVAddr(20, 12), 0.U(3.W)) // VPN 2
           }
           when(pteLevelReg === 3.U) { // Should be a fault
             pteLevelReg := 3.U
