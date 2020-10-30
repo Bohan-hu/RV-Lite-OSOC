@@ -73,7 +73,7 @@ class PTW(isDPTW: Boolean) extends Module {
   io.memReq.memWdata     := 0.U
   io.memReq.memWen       := 0.U
   io.memReq.memWmask     := 0.U
-  io.memReq.memAddr      := ptrReg
+  io.memReq.memAddr      := ptrReg - 0x80000000L.U
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled

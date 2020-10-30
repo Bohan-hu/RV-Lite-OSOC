@@ -85,7 +85,7 @@ class IFU extends Module {
           savedPC := pc
         }.otherwise {
           thisExce.valid := true.B
-          io.inst_out.instValid := ~pendingRedirect
+          thisInstValid := ~pendingRedirect
           state := sIDLE
         }
       }
