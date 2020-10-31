@@ -292,6 +292,9 @@ class MEM extends Module {
     is(sWAIT_WR) {
         io.mem2dmem.memWen := true.B
         io.pauseReq := true.B
+        when(io.mem2dmem.memWdata === 0x00000597.U ) {
+          printf("Writing Instruction to %x\n", io.mem2dmem.memAddr)
+        }
         when(io.mem2dmem.memWrDone) {
           io.pauseReq := false.B
           state := sIDLE
@@ -306,7 +309,7 @@ class MEM extends Module {
   // MMIO Flag
   BoringUtils.addSource(RegNext(io.isMemOp & isMMIO), "difftestIsMMIO")
   when(accessVAddr === 0x807FF000L.U & isStore) {
-    printf("Writing to &SATP: %x\n", io.R2Val)
+    // printf("Writing to &SATP: %x\n", io.R2Val)
   }
   // LSU 
   // IDLE -> ReqPADDR -> OP -> IDLE

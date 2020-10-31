@@ -163,7 +163,9 @@ class PTW(isDPTW: Boolean) extends Module {
             Attempting to fetch an instruction from a page that does not have execute permissions
             raises a fetch page-fault exception
              */
-            when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
+            // TODO: Recover the condition
+            // when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
+            when(!pteConverted.X) { // Instr, not eXecutable
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B

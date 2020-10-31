@@ -289,6 +289,7 @@ class CSRMMU extends Bundle {
 class commitCSR extends Bundle {
   val instValid = Input(Bool())
   val inst = Input(UInt(32.W))
+  val instPC = Input(UInt(64.W))
   val csrWData = Input(UInt(64.W))
   val csrAddr = Input(UInt(12.W))
   val csrOp = Input(UInt(3.W))
@@ -578,6 +579,7 @@ class CSRFile extends Module {
   // TODO: Consider MPRV Bit
   val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U
   val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U
+  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011")
   val isEret = isMret | isSret
   // ================== ERET Handler Begins ===================
   /*
@@ -655,6 +657,9 @@ class CSRFile extends Module {
   }.elsewhen(io.commitCSR.exceptionInfo.valid  && io.commitCSR.instValid ) {
     io.ifRedir.redir := true.B
     io.ifRedir.redirPC := handlerEntry
+  }.elsewhen(isSFence && io.commitCSR.instValid ) {
+    io.ifRedir.redir := true.B
+    io.ifRedir.redirPC := io.commitCSR.instPC + 4.U
   }
 }
 
