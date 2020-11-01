@@ -81,6 +81,7 @@ class PTW(isDPTW: Boolean) extends Module {
   // Also need to consider whether the Sv39 translation is enabled
   switch(stateReg) {
     is(sIDLE) {
+      pteReg := 0.U
       pteLevelReg := 1.U
       // Data request has higher priority
       if (isDPTW) {
@@ -175,10 +176,12 @@ class PTW(isDPTW: Boolean) extends Module {
           }
           // 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
           // exception.
-          when((pteLevelReg === 1.U && Cat(pteConverted.ppn2, pteConverted.ppn1) =/= 0.U) ||
-            (pteLevelReg === 2.U && pteConverted.ppn1 =/= 0.U)) {
-            stateReg := sERROR
-          }
+          // TODO: Fix it
+          // when((pteLevelReg === 1.U && Cat(pteConverted.ppn2, pteConverted.ppn1) =/= 0.U) ||
+          //   (pteLevelReg === 2.U && pteConverted.ppn1 =/= 0.U)) {
+          //   io.respValid := false.B
+          //   stateReg := sERROR
+          // }
         }.otherwise { // the PTE is a pointer to the next level of the page table
           stateReg := sWAIT_PTE_Entry
           when(pteLevelReg === 1.U) {

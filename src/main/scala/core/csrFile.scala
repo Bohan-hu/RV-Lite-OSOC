@@ -83,14 +83,15 @@ object CSRAddr {
   val mtinst = 0x34a.U
   val mtval2 = 0x34b.U
   // Machine Memory Protection.U
-  val pmpcfg0 = 0x3a0.U
+  val pmpcfg0 = 0x3a0.U  
+  val pmpcfg1 = 0x3a1.U
   val pmpcfg2 = 0x3a2.U
-  val pmpcfg4 = 0x3a4.U
-  val pmpcfg6 = 0x3a6.U
-  val pmpcfg8 = 0x3a8.U
-  val pmpcfg10 = 0x3aa.U
-  val pmpcfg12 = 0x3ac.U
-  val pmpcfg14 = 0x3ae.U
+  val pmpcfg3 = 0x3a3.U
+  val pmpaddr0 = 0x3B0.U
+  val pmpaddr1 = 0x3B1.U
+  val pmpaddr2 = 0x3B2.U
+  val pmpaddr3 = 0x3B3.U
+
   // TODO:PMPADD.UR.Ux
 
 
@@ -362,9 +363,9 @@ class CSRFile extends Module {
   BoringUtils.addSource(privMode, "difftestMode")
 
   // Hardwired Registers
-  val misa_extension = "I"
+  val misa_extension = "IMASUC" // Add C to cheat the Difftest
   val extension_val = misa_extension.map(e => 1 << (e - 'A')).reduce(_ | _).asUInt()
-  val misa = WireInit(UInt(64.W), Cat(2.U(2.W), 0.U(60.W)) | extension_val)
+  val misa = WireInit(UInt(64.W), Cat(2.U(2.W), 0.U(62.W)) | extension_val)
   val mvendorid = WireInit(UInt(32.W), 0.U)
   val marchid = WireInit(UInt(64.W), 0.U)
   val mimpid = WireInit(UInt(64.W), 0.U)
@@ -380,7 +381,7 @@ class CSRFile extends Module {
   // mdeleg and mideleg
   val medeleg = RegInit(UInt(64.W), 0.U) // Machine Exception Delegation Register
   val mideleg = RegInit(UInt(64.W), 0.U) // Machine Interrupt Delegation Register
-  val medelgAndMask = 1.U << 11 // medelg[11] is hardwired to zero
+  // val medelgAndMask = 1.U << 11 // medelg[11] is hardwired to zero
   val midelegMask = WireInit(UInt(64.W),
     ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI))
   )
@@ -453,7 +454,16 @@ class CSRFile extends Module {
     CSRAddr.sepc -> sepc,
     CSRAddr.scause -> scause,
     CSRAddr.stval -> stval,
-    CSRAddr.satp -> satp
+    CSRAddr.satp -> satp,
+    // PMP
+    CSRAddr.pmpcfg0 -> pmpcfg0,
+    CSRAddr.pmpcfg1 -> pmpcfg1,
+    CSRAddr.pmpcfg2 -> pmpcfg2,
+    CSRAddr.pmpcfg3 -> pmpcfg3,
+    CSRAddr.pmpaddr0 -> pmpaddr0,
+    CSRAddr.pmpaddr1 -> pmpaddr1,
+    CSRAddr.pmpaddr2 -> pmpaddr2,
+    CSRAddr.pmpaddr3 -> pmpaddr3
   )
   // dontTouch(mip_o)
   // CSR Read Data
@@ -474,12 +484,7 @@ class CSRFile extends Module {
     CSRAddr.mip -> midelegMask, // TODO?
     CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
-    CSRAddr.medeleg -> ((1.U << ExceptionNo.instrAddrMisaligned) |
-      (1.U << ExceptionNo.breakPoint) |
-      (1.U << ExceptionNo.ecallU) |
-      (1.U << ExceptionNo.instrPageFault) |
-      (1.U << ExceptionNo.loadPageFault) |
-      (1.U << ExceptionNo.storePageFault)),
+    CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
     CSRAddr.sie -> midelegMask,
     CSRAddr.sip -> sipMask,
@@ -649,6 +654,7 @@ class CSRFile extends Module {
   io.intCtrl.intGlobalEnable := (mstatus.asTypeOf(new mstatus).MIE & privMode === M) | (privMode =/= M)
 
   // Redir
+  val needFlush = io.commitCSR.instValid && (isSFence || csrWen)
   io.ifRedir.redir := false.B
   io.ifRedir.redirPC := epc
   when(isEret && io.commitCSR.instValid) {
@@ -657,7 +663,7 @@ class CSRFile extends Module {
   }.elsewhen(io.commitCSR.exceptionInfo.valid  && io.commitCSR.instValid ) {
     io.ifRedir.redir := true.B
     io.ifRedir.redirPC := handlerEntry
-  }.elsewhen(isSFence && io.commitCSR.instValid ) {
+  }.elsewhen( needFlush ) {
     io.ifRedir.redir := true.B
     io.ifRedir.redirPC := io.commitCSR.instPC + 4.U
   }

@@ -67,7 +67,7 @@ class IFU extends Module {
     is(sIDLE) {
       pc := Mux(pendingRedirect, pendingRedirectAddr, npc)
       pendingRedirect := false.B
-      io.ifu2mmu.reqReady := true.B
+      io.ifu2mmu.reqReady := false.B    // Might decrease the performance
       io.ifu2mmu.reqVAddr := Mux(pendingRedirect, pendingRedirectAddr, npc)
       state := sWAIT_PADDR
       pendingExce := false.B

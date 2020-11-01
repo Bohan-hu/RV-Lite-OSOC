@@ -59,7 +59,7 @@ class MEMIO extends Bundle {
 
 object MMIO {
   val MMIORange = List(
-    (0x40600000L, 0x10L), // uart
+    (0x40600000L, 0x1000L), // uart
     (0x50000000L, 0x400000L), // vmem
     (0x40001000L, 0x8L), // vga ctrl
     (0x40000000L, 0x1000L), // flash
@@ -197,13 +197,14 @@ class MEM extends Module {
   val isAMO            = ( io.isMemOp & io.MemOp === MEM_AMO & !io.exceInfoIn.valid )
   val scWillSuccess    = ( reservationValid && reservationSet === accessVAddr )
   val scResult         = isSC & !scWillSuccess
+  val scSuccessReg     = RegInit(1.U(64.W))
   // When the instruction does not cause exception, is valid, and will happen, send the request to MMU
-  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | isAMO )
+  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) )
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
   val rDataReg = Reg(UInt(64.W))
   val amoSrc1 = Mux(dataSize === 4.U, io.R2Val(31,0), io.R2Val)
-  val amoSrc2 = Mux(dataSize === 4.U, rDataReg(31,0), rDataReg)
+  val amoSrc2 = Mux(dataSize === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
   val amoWData = MuxLookup(io.fuOp, amoSrc2, 
     Array(
       LSU_ASWAP -> amoSrc1,
@@ -218,21 +219,23 @@ class MEM extends Module {
     )
   )
   io.mem2dmem.memAddr := translatedPAddr
-  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, Mux(isAMO, amoWData, io.R2Val))
+  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
   io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, accessVAddr))
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
-  when(isSC & scWillSuccess) {
+  when(isSC & scSuccessReg === 0.U) {
     io.memResult := 0.U
-  }.elsewhen(isSC & !scWillSuccess) {
+  }.elsewhen(isSC & scSuccessReg === 1.U) {
     io.memResult := 1.U
   }
   io.pauseReq := false.B
   switch(state) {
     is(sIDLE) {
-      when(isSC) {
+      scSuccessReg := 1.U
+      when(isSC && scWillSuccess) {
         reservationValid := false.B
+        scSuccessReg := 0.U
       }
       when( canFireMemReq & !isMMIO ) {
         io.pauseReq := true.B
@@ -290,11 +293,8 @@ class MEM extends Module {
       }
     }
     is(sWAIT_WR) {
-        io.mem2dmem.memWen := true.B
+        io.mem2dmem.memWen := !isMMIO
         io.pauseReq := true.B
-        when(io.mem2dmem.memWdata === 0x00000597.U ) {
-          printf("Writing Instruction to %x\n", io.mem2dmem.memAddr)
-        }
         when(io.mem2dmem.memWrDone) {
           io.pauseReq := false.B
           state := sIDLE
@@ -302,7 +302,7 @@ class MEM extends Module {
     }
   }
   val isUART = 0x40600000L.U <= io.mem2dmem.memAddr & (0x40600000L+10L).U >= io.mem2dmem.memAddr
-  when(isMMIO & io.mem2dmem.memWen & isUART ) {
+  when( isStore && isUART ) {
     printf("%c", io.R2Val(7,0))
   }
 
