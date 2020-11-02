@@ -85,11 +85,11 @@ class PTW(isDPTW: Boolean) extends Module {
       pteLevelReg := 1.U
       // Data request has higher priority
       if (isDPTW) {
-        when(!io.enableSv39 | !io.translation_ls_en) {
+        when(!io.translation_ls_en) {
           io.respValid := true.B
           io.respPaddr := io.reqVAddr - 0x80000000L.U
         }
-        when(io.enableSv39 && io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
+        when( io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
           stateReg := sWAIT_PTE_Entry
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
