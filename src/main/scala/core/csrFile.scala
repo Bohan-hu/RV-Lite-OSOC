@@ -305,6 +305,15 @@ class ExceptionRedir extends Bundle {
   val redir = Bool()
 }
 
+class DecodePrivCheck extends Bundle {
+  val csrAddr = Input(UInt(12.W))
+  val csrOp = Input(UInt(3.W))
+  val instRd = Input(UInt(5.W))
+  val instRs = Input(UInt(5.W))
+  val instImm = Input(UInt(32.W))
+  val illegalInst = Output(Bool())
+}
+
 class CSRIO extends Bundle {
   val commitCSR = new commitCSR
   val illegalInst = Output(Bool())
@@ -316,6 +325,8 @@ class CSRIO extends Bundle {
   // To decoder, let decoder handle the interrupt
   val intCtrl = Output(new INTCtrl)
   val clintIn = Input(new CLINTCSR)
+
+  val decodePrivCheck = new DecodePrivCheck
 }
 
 class CSRFile extends Module {
@@ -323,6 +334,7 @@ class CSRFile extends Module {
   val M = "b11".U
   val S = "b01".U
   val U = "b00".U
+
   val accessCSRPriv = io.commitCSR.csrAddr(9, 8)
   //             IF the instruction is CSRRW / CSRRWI               else
   val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W))
@@ -667,6 +679,27 @@ class CSRFile extends Module {
     io.ifRedir.redir := true.B
     io.ifRedir.redirPC := io.commitCSR.instPC + 4.U
   }
+
+  // Check priv in decode stage
+  val decodeAccessCSRPriv = io.decodePrivCheck.csrAddr(9, 8)
+  //             IF the instruction is CSRRW / CSRRWI               else
+  val decodeCSRRen = ((io.decodePrivCheck.csrOp === CSR_W && io.decodePrivCheck.instRd =/= 0.U) || (io.decodePrivCheck.csrOp =/= CSR_X && io.decodePrivCheck.csrOp =/= CSR_W))
+  val decodeCSRWen = !(io.decodePrivCheck.csrOp === CSR_X || io.decodePrivCheck.csrOp === CSR_I || 
+    ((io.decodePrivCheck.csrOp === CSR_S ||  io.decodePrivCheck.csrOp === CSR_C) &&  io.decodePrivCheck.instRs === 0.U) ||
+    ((io.decodePrivCheck.csrOp === CSR_SI || io.decodePrivCheck.csrOp === CSR_CI) && io.decodePrivCheck.instImm === 0.U))
+  val decodeCSRExists = csrMapping.map(kv => io.decodePrivCheck.csrAddr === kv._1).reduce(_ | _).asBool()
+  val decodeReadOnlyCSR = io.decodePrivCheck.csrAddr(11, 10) === "b11".U
+  val decodeCSRFalsePriv = decodeAccessCSRPriv > privMode
+  // Legal stands for CSR exists and the priv is right
+  val decodeCSRAddrLegal = decodeCSRExists & !decodeCSRFalsePriv
+  val decodeWriteIllegalCSR = decodeCSRWen & (!decodeCSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.decodePrivCheck.csrAddr === CSRAddr.satp) |
+    decodeReadOnlyCSR)
+  val decodeReadIllegalCSR = decodeCSRRen & (!decodeCSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.decodePrivCheck.csrAddr === CSRAddr.satp))
+
+  io.decodePrivCheck.illegalInst := decodeWriteIllegalCSR | decodeReadIllegalCSR
+
 }
 
 object CSRFile extends App {

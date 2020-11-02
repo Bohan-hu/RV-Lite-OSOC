@@ -50,6 +50,7 @@ class Top extends Module {
   decoder.io.regfileIO <> regfile.io.rdPort
   decoder.io.exceptionInfoIF <> ifu.io.exceInfoOut
   decoder.io.PLIC_SEI := false.B
+  decoder.io.decodePrivCheck <> csrFile.io.decodePrivCheck
 
   // DECODER <> EXU
   exu.io.instBundleIn := decoder.io.instBundleOut

@@ -42,6 +42,7 @@ class Decode extends Module {
     val decode2Exe = Output(new Decode2Exe)
     val instBundleOut = Output(new InstBundle)
     val intCtrl = Input(new INTCtrl)
+    val decodePrivCheck = Flipped(new DecodePrivCheck)
     val PLIC_SEI = Input(Bool())
   })
 
@@ -211,6 +212,13 @@ class Decode extends Module {
   io.instBundleOut := io.instBundleIn
   io.instBundleOut.instValid := io.decode2Exe.instValid
 
+  // CSR Priv Check
+  io.decodePrivCheck.csrAddr := io.instBundleIn.inst(31, 20)
+  io.decodePrivCheck.csrOp := csrOp
+  io.decodePrivCheck.instRs := RS1
+  io.decodePrivCheck.instRd := Rd
+  io.decodePrivCheck.instImm := op2
+
   val M = "b11".U
   val S = "b01".U
   val U = "b00".U
@@ -221,10 +229,14 @@ class Decode extends Module {
 
   def makeInt(no: Int) = (no.U | 1.U << 63)
 
-  when(!io.exceptionInfoIF.valid) {
+  when(!io.exceptionInfoIF.valid && io.instBundleIn.instValid) {
     exceptionInfo.tval := io.instBundleIn.inst
     // TODO: Illegal instruction on xRET when x > privMode
-
+    // Illegal Inst (CSR false priv) 
+    when(io.decodePrivCheck.illegalInst) {
+      exceptionInfo.valid := true.B
+      exceptionInfo.cause := ExceptionNo.illegalInstr.U
+    }
     // ================= Handle ECALL and EBREAK begins ===================
     when(io.instBundleIn.inst === "b00000000000000000000000001110011".U) { // ECALL
       exceptionInfo.valid := true.B
