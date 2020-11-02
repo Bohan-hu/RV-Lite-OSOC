@@ -571,7 +571,7 @@ class CSRFile extends Module {
       mcause := io.commitCSR.exceptionInfo.cause
       mepc := io.commitCSR.exceptionInfo.epc
       mtval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
-        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
+        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||    // TODO: Wrong Implementation in Nutshell and Nemu
         io.commitCSR.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallM.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallS.U ||
@@ -584,7 +584,7 @@ class CSRFile extends Module {
       scause := io.commitCSR.exceptionInfo.cause
       sepc := io.commitCSR.exceptionInfo.epc
       stval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
-        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
+        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U || // TODO: Wrong Implementation in Nutshell and Nemu
         io.commitCSR.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallM.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallS.U ||
