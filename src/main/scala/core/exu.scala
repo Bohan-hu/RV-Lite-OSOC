@@ -46,7 +46,7 @@ class EXUIO extends Bundle {
   val pauseReq = Output(Bool())
   val exe2Commit = Output(new Exe2Commit)
   val instBundleOut = Output(new InstBundle)
-  val mem2dmem = new MEM2dmem
+  val mem2dmem = new NaiveBusM2S
   val toclint  = Flipped(new MEMCLINT)
   val csr2mmu = Flipped(new CSRMMU)
 }

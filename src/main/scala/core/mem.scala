@@ -19,7 +19,8 @@ class Mem2Wb extends Bundle {
   val exceInfo  = new ExceptionInfo
 }
 
-class MEM2dmem extends Bundle {
+// Naive Bus Master to slave
+class NaiveBusM2S extends Bundle {
   val memRreq   = Output(Bool())
   val memAddr   = Output(UInt(64.W))
   val memRdata  = Input(UInt(64.W))
@@ -52,7 +53,7 @@ class MEMIO extends Bundle {
   val memResult   = Output(UInt(64.W))
   val pauseReq    = Output(Bool())
   // Will be passed directly by exu to outside
-  val mem2dmem = new MEM2dmem
+  val mem2dmem = new NaiveBusM2S
   val mem2mmu = new MEM2MMU
   val toclint  = Flipped(new MEMCLINT)
 }
@@ -142,7 +143,6 @@ class MEM extends Module {
   val io = IO(new MEMIO)
   val accessVAddr = io.baseAddr + io.imm
 
-  val accessPAddr = accessVAddr - 0x80000000L.U   // TODO: Handle the Translation
   val isMMIO = MMIO.inMMIORange(accessVAddr)
   // TODO:
   val readClint = accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U

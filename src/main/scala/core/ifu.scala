@@ -22,7 +22,7 @@ class IFUIO extends Bundle {
   val exceptionRedir = Input(new ExceptionRedir)
   val pause = Input(Bool())
   val ifu2mmu = new MEM2MMU
-  val ifu2dmem = new MEM2dmem
+  val ifu2dmem = new NaiveBusM2S
   val exceInfoOut = Output(new ExceptionInfo)
 }
 

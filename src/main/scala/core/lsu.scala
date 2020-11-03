@@ -16,7 +16,7 @@ class MemReq extends Bundle {
 // A wrapper module 
 class LSUIO extends Bundle {
   val memIO = new MEMIO
-  val lsu2Dmem = new MEM2dmem
+  val lsu2Dmem = new NaiveBusM2S
 }
 
 class LSU extends Module {

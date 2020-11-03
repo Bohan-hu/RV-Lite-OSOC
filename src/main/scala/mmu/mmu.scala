@@ -3,12 +3,12 @@ import chisel3._
 import _root_.core.MEM2MMU
 import _root_.core.CSRMMU
 import chisel3.stage.ChiselStage
-import _root_.core.MEM2dmem
+import _root_.core.NaiveBusM2S
 class MMUIO extends Bundle {
   val mem2mmu = Flipped(new MEM2MMU)
   val isStore = Input(Bool())
   val flush = Input(Bool())
-  val dmemreq = new MEM2dmem
+  val dmemreq = new NaiveBusM2S
   val csr2mmu = Flipped(new CSRMMU)
 }
 // LSU send VAddr to MMU, MMU returns the PAddr with valid signal

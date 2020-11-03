@@ -2,7 +2,7 @@ package mmu
 
 import chisel3._
 import chisel3.util._
-import _root_.core.MEM2dmem
+import _root_.core.NaiveBusM2S
 
 class PTE extends Bundle {
   val reversed = UInt(10.W)
@@ -47,7 +47,7 @@ class PTWIO extends Bundle {
   val satp_PPN = Input(UInt(44.W))
   val mxr = Input(Bool())
   // DMem request
-  val memReq = new MEM2dmem
+  val memReq = new NaiveBusM2S
   // TODO: TLB Query
   val tlbQuery = Flipped(new TLBQuery)
   // TODO: TLB Update
@@ -75,7 +75,7 @@ class PTW(isDPTW: Boolean) extends Module {
   io.memReq.memWdata     := 0.U
   io.memReq.memWen       := 0.U
   io.memReq.memWmask     := 0.U
-  io.memReq.memAddr      := ptrReg - 0x80000000L.U
+  io.memReq.memAddr      := ptrReg
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled
@@ -87,7 +87,7 @@ class PTW(isDPTW: Boolean) extends Module {
       if (isDPTW) {
         when(!io.translation_ls_en) {
           io.respValid := true.B
-          io.respPaddr := io.reqVAddr - 0x80000000L.U
+          io.respPaddr := io.reqVAddr
         }
         when( io.translation_ls_en && io.reqReady && !io.tlbQuery.hit) {
           stateReg := sWAIT_PTE_Entry
@@ -96,7 +96,7 @@ class PTW(isDPTW: Boolean) extends Module {
       } else {
         when(!io.enableSv39) {
           io.respValid := true.B
-          io.respPaddr := io.reqVAddr - 0x80000000L.U
+          io.respPaddr := io.reqVAddr
         }
         when(io.enableSv39 && io.reqReady && !io.tlbQuery.hit) { // Instruction Request
           stateReg := sWAIT_PTE_Entry
@@ -137,9 +137,9 @@ class PTW(isDPTW: Boolean) extends Module {
           */
           // TODO: Handle the 80000000L in crossbars(IMPORTANT)
           switch(pteLevelReg) {
-            is(1.U) { io.respPaddr := Cat(pteConverted.ppn2, io.reqVAddr(29,0)) - 0x80000000L.U }
-            is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0)) - 0x80000000L.U}
-            is(3.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, pteConverted.ppn0, io.reqVAddr(11,0)) -  0x80000000L.U}
+            is(1.U) { io.respPaddr := Cat(pteConverted.ppn2, io.reqVAddr(29,0))}
+            is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0))}
+            is(3.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, pteConverted.ppn0, io.reqVAddr(11,0))}
           }
           if (isDPTW) { // isDPTW, check the following conditions
             // TODO: when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
