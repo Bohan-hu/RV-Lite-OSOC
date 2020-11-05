@@ -45,7 +45,7 @@ class SyncReadOnlyMem extends Module {
   switch(state) {
     is(sIDLE) {
       when(io.rreq) {
-        addrReg := io.raddr
+        addrReg := io.raddr - 0x80000000L.U
         state := sHOLD
       }
     }
@@ -98,11 +98,10 @@ class SyncReadWriteMem extends Module {
   }.otherwise {
     ack := false.B
   }
-  ram.io.rIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U & !isMMIO, io.mem2dmem.memAddr(63, 3), 0.U)
-  ram.io.rIdx := io.mem2dmem.memAddr(26, 3)
+  val accessAddr = io.mem2dmem.memAddr - 0x80000000L.U
+  ram.io.rIdx := accessAddr(26, 3)
   io.mem2dmem.memRdata := ram.io.rdata
-  ram.io.wIdx := Mux(io.mem2dmem.memAddr(63, 3) < 16777216.U & !isMMIO, io.mem2dmem.memAddr(63, 3), 0.U)
-  ram.io.wIdx := io.mem2dmem.memAddr(26, 3)
+  ram.io.wIdx := accessAddr(26, 3)
   ram.io.wdata := io.mem2dmem.memWdata
   ram.io.wmask := io.mem2dmem.memWmask
   ram.io.wen := io.mem2dmem.memWen

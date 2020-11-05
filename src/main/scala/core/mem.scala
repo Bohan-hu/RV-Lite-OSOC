@@ -142,14 +142,12 @@ class MEM extends Module {
   val io = IO(new MEMIO)
   val accessVAddr = io.baseAddr + io.imm
 
-  val accessPAddr = accessVAddr - 0x80000000L.U   // TODO: Handle the Translation
-  val isMMIO = MMIO.inMMIORange(accessVAddr)
   // TODO:
-  val readClint = accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U
+  val readClint = io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U
   io.exceInfoOut := io.exceInfoIn
-  io.toclint.wen := accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE
+  io.toclint.wen := io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE
   io.toclint.data := io.R2Val
-  io.toclint.addr := accessVAddr
+  io.toclint.addr := io.mem2dmem.memAddr
   // TODO Ends
   val dataSize = MuxLookup(io.MemType, 8.U,
     Array(
@@ -224,6 +222,7 @@ class MEM extends Module {
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
+  val isMMIO = Mux(state === sIDLE, MMIO.inMMIORange(accessVAddr) ,MMIO.inMMIORange(io.mem2dmem.memAddr))   // Patch
   when(isSC & scSuccessReg === 0.U) {
     io.memResult := 0.U
   }.elsewhen(isSC & scSuccessReg === 1.U) {

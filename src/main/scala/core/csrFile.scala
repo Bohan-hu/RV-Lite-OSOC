@@ -541,8 +541,9 @@ class CSRFile extends Module {
     }
   )
   // Handle the MIP & SIP Case
+  val updateValMip = (Mux(isCsr_S | isCsr_C, csrRdata, 0.U) | io.commitCSR.csrWData) & (~Mux(isCsr_C, io.commitCSR.csrWData, 0.U)).asUInt()
   when( csrWen && io.commitCSR.csrAddr === CSRAddr.mip ) {
-    mip := maskedWrite(mip,io.commitCSR.csrWData, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+    mip := maskedWrite(mip, updateValMip, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
   }.otherwise {
     mip := mip & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
   }

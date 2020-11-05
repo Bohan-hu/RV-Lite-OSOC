@@ -262,11 +262,12 @@ class Decode extends Module {
     // We need a cause int signal to show whether the corresponding int is enabled
     val causeInt = Wire(Bool())
     causeInt := false.B
-    when(MipAndMie(IntNo.STI)) {
+    val sIntEnable = (io.intCtrl.privMode === S && io.intCtrl.sie || io.intCtrl.privMode === M)
+    when(MipAndMie(IntNo.STI) & io.intCtrl.sie & sIntEnable) {
       exceptionInfo.cause := makeInt(IntNo.STI)
       causeInt := true.B
     }
-    when(MipAndMie(IntNo.SSI)) {
+    when(MipAndMie(IntNo.SSI) & io.intCtrl.sie & sIntEnable) {
       exceptionInfo.cause := makeInt(IntNo.SSI)
       causeInt := true.B
     }
