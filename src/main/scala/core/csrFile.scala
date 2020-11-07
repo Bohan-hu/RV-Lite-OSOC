@@ -337,7 +337,7 @@ class CSRFile extends Module {
 
   val accessCSRPriv = io.commitCSR.csrAddr(9, 8)
   //             IF the instruction is CSRRW / CSRRWI               else
-  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W))
+  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W && io.commitCSR.csrOp =/= CSR_I))
   val csrWen = io.commitCSR.instValid && !(io.commitCSR.csrOp === CSR_X || io.commitCSR.csrOp === CSR_I || 
     ((io.commitCSR.csrOp === CSR_S || io.commitCSR.csrOp === CSR_C) && io.commitCSR.instRs === 0.U) ||
     ((io.commitCSR.csrOp === CSR_SI || io.commitCSR.csrOp === CSR_CI) && io.commitCSR.csrWData === 0.U))
@@ -385,7 +385,7 @@ class CSRFile extends Module {
   // Configurable Registers
 
   // mtvec
-  val reset_mtvec = WireInit(0.U.asTypeOf(new mtvec_t)) // todo: determine the reset value
+  val reset_mtvec = WireInit(0.U.asTypeOf(new mtvec_t))
   reset_mtvec.BASE := 0.U
   reset_mtvec.MODE := 0.U
   val mtvec = RegInit(reset_mtvec.asUInt())
@@ -500,8 +500,8 @@ class CSRFile extends Module {
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
     CSRAddr.sie -> midelegMask,
     CSRAddr.sip -> sipMask,
-    CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
-    CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
+    // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
+    // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
@@ -684,7 +684,7 @@ class CSRFile extends Module {
   // Check priv in decode stage
   val decodeAccessCSRPriv = io.decodePrivCheck.csrAddr(9, 8)
   //             IF the instruction is CSRRW / CSRRWI               else
-  val decodeCSRRen = ((io.decodePrivCheck.csrOp === CSR_W && io.decodePrivCheck.instRd =/= 0.U) || (io.decodePrivCheck.csrOp =/= CSR_X && io.decodePrivCheck.csrOp =/= CSR_W))
+  val decodeCSRRen = ((io.decodePrivCheck.csrOp === CSR_W && io.decodePrivCheck.instRd =/= 0.U) || (io.decodePrivCheck.csrOp =/= CSR_X && io.decodePrivCheck.csrOp =/= CSR_W && io.decodePrivCheck.csrOp =/= CSR_I))
   val decodeCSRWen = !(io.decodePrivCheck.csrOp === CSR_X || io.decodePrivCheck.csrOp === CSR_I || 
     ((io.decodePrivCheck.csrOp === CSR_S ||  io.decodePrivCheck.csrOp === CSR_C) &&  io.decodePrivCheck.instRs === 0.U) ||
     ((io.decodePrivCheck.csrOp === CSR_SI || io.decodePrivCheck.csrOp === CSR_CI) && io.decodePrivCheck.instImm === 0.U))
