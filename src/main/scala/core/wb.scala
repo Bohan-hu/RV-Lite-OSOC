@@ -20,7 +20,7 @@ class WB extends Module {
   io.csrRw.exceptionInfo := io.exe2Commit.exceInfo
   io.csrRw.instPC := io.instBundleIn.inst_pc
   BoringUtils.addSource(RegNext(io.instBundleIn.instValid), "difftestCommit")
-  BoringUtils.addSource(RegNext(Mux(io.exe2Commit.exceInfo.valid & io.instBundleIn.instValid, io.exe2Commit.exceInfo.cause,0.U)),"difftestIntrNO")
+  BoringUtils.addSource(RegNext(Mux(io.exe2Commit.exceInfo.valid & io.instBundleIn.instValid & io.exe2Commit.exceInfo.cause(63), io.exe2Commit.exceInfo.cause,0.U)),"difftestIntrNO")
   io.csrRw.csrWData := io.exe2Commit.arithResult
   io.csrRw.csrAddr := io.instBundleIn.inst.asTypeOf(new CSRRInstruction).csr
   io.csrRw.csrOp := io.exe2Commit.CSRCmd

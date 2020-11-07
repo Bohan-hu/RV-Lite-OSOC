@@ -1,5 +1,5 @@
 package mmu
-
+import core.MMIO
 import chisel3._
 import chisel3.util._
 import _root_.core.NaiveBusM2S
