@@ -256,10 +256,6 @@ class ExceptionInfo extends Bundle {
   val valid = Bool()
 }
 
-class PLICCSR extends Bundle {
-  val intrVec = UInt(3.W)       // TODO: Should be defined by parameter
-  val meip = Bool()
-}
 
 class CLINTCSR extends Bundle {
   val mtip = Bool()
@@ -327,6 +323,7 @@ class CSRIO extends Bundle {
   val clintIn = Input(new CLINTCSR)
 
   val decodePrivCheck = new DecodePrivCheck
+  val meip = Input(Bool())
 }
 
 class CSRFile extends Module {
@@ -397,9 +394,12 @@ class CSRFile extends Module {
   val midelegMask = WireInit(UInt(64.W),
     ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI))
   )
+  val sieMask = WireInit(UInt(64.W),
+    ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI)) & mideleg
+  )
   // Spec P77, SEIP , STIP is read-only, and SSIP is writable
   val sipMask = WireInit(UInt(64.W),
-    (1.U << IntNo.SSI)
+    (1.U << IntNo.SSI) & mideleg
   )
 
   val mcounteren = RegInit(UInt(64.W), 0.U)
@@ -498,7 +498,7 @@ class CSRFile extends Module {
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
-    CSRAddr.sie -> midelegMask,
+    CSRAddr.sie -> sieMask,
     CSRAddr.sip -> sipMask,
     // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
     // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),

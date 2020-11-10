@@ -37,7 +37,7 @@ class IFU extends Module {
   val state = RegInit(sIDLE)
   val pendingRedirect = RegInit(false.B)
   val pendingRedirectAddr = RegInit(0.U(64.W))
-  val pc = RegInit(0x80000000L.U(64.W)-4.U)
+  val pc = RegInit(0x40000000L.U(64.W)-4.U)
   val thisInstValid = WireInit(false.B)
   val thisPC = WireInit(0.U)
   val thisInst = WireInit(0.U)
@@ -60,9 +60,9 @@ class IFU extends Module {
   io.ifu2dmem.memWdata := 0.U
   io.ifu2dmem.memWmask := 0.U
   io.ifu2dmem.memRreq := false.B
+  io.ifu2dmem.memSize := "b011".U
   io.ifu2mmu.reqVAddr := pc
   io.ifu2mmu.reqReady := false.B
-
   switch(state) {
     is(sIDLE) {
       pc := Mux(pendingRedirect, pendingRedirectAddr, npc)
