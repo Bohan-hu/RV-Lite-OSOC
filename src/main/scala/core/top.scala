@@ -33,7 +33,7 @@ class Top extends Module {
   immu.io.dmemreq.memRdata := imem.io.rdata
   immu.io.dmemreq.memWrDone := false.B
   immu.io.isStore := false.B
-  immu.io.flush := false.B    // TODO
+  immu.io.flush := csrFile.io.ifRedir.redir
   immu.io.csr2mmu <> csrFile.io.csrMMU
   ifu.io.branchRedir := exu.io.exe2IF
   ifu.io.exceptionRedir := csrFile.io.ifRedir
@@ -55,7 +55,9 @@ class Top extends Module {
   // DECODER <> EXU
   exu.io.instBundleIn := decoder.io.instBundleOut
   exu.io.decode2Exe := decoder.io.decode2Exe
+  exu.io.flush := csrFile.io.ifRedir
   exu.io.csr2mmu <> csrFile.io.csrMMU
+  exu.io.commit2Exe := wb.io.commit2Exe
 
   // MEM <> WB / MEM <> dmem
   wb.io.instBundleIn := exu.io.instBundleOut
@@ -75,7 +77,6 @@ class Top extends Module {
   io.instBundleOut := wb.io.instBundleOut
 
   // Consts
-  // TODO: TEST
   val clint_tmp = Module(new CLINT)
   csrFile.io.clintIn := clint_tmp.io.tocsr
   clint_tmp.io.memport <> exu.io.toclint

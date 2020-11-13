@@ -145,7 +145,6 @@ class MEM extends Module {
   // TODO:
   val readClint = io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U
   io.exceInfoOut := io.exceInfoIn
-  io.toclint.wen := io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE
   io.toclint.data := io.R2Val
   io.toclint.addr := io.mem2dmem.memAddr
   // TODO Ends
@@ -229,6 +228,7 @@ class MEM extends Module {
     io.memResult := 1.U
   }
   io.pauseReq := false.B
+  io.toclint.wen := io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE && state === sWAIT_WR // TODO: Notice: It's an ugly patch!!!!
   switch(state) {
     is(sIDLE) {
       scSuccessReg := 1.U
@@ -275,7 +275,7 @@ class MEM extends Module {
         state := sIDLE
         io.pauseReq := false.B
         io.exceInfoOut.valid := true.B
-        io.exceInfoOut.cause := ExceptionNo.loadPageFault.U
+        io.exceInfoOut.cause := Mux(isLoad, ExceptionNo.loadPageFault.U, ExceptionNo.storePageFault.U)
         io.exceInfoOut.tval := accessVAddr
         io.exceInfoOut.epc := io.instPC
       }

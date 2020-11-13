@@ -45,10 +45,12 @@ class EXUIO extends Bundle {
   val exe2IF = Output(new BranchRedir)
   val pauseReq = Output(Bool())
   val exe2Commit = Output(new Exe2Commit)
+  val commit2Exe = Input(new commit2Exe)
   val instBundleOut = Output(new InstBundle)
   val mem2dmem = new MEM2dmem
   val toclint  = Flipped(new MEMCLINT)
   val csr2mmu = Flipped(new CSRMMU)
+  val flush = Input(Bool())
 }
 
 class EXU extends Module {
@@ -57,6 +59,12 @@ class EXU extends Module {
   val op1 = io.decode2Exe.Op1
   val op2 = io.decode2Exe.Op2
   val rs2 = io.decode2Exe.R2val
+  /*
+  val op1Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr1 && decode2Exe.R1ren && io.commit2Exe.wen && io.instBundleIn.instValid
+  val op2Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr2 && decode2Exe.R2ren && io.commit2Exe.wen && io.instBundleIn.instValid
+  */
+  val op1Hazard := false.B
+  val op2Hazard := false.B
 
   // Branch Unit
   val branchTakenCond = Array(
@@ -125,7 +133,7 @@ class EXU extends Module {
   io.mem2dmem.memWmask      := mem.io.mem2dmem.memWmask
   io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
   dmmu.io.dmemreq.memRvalid := io.mem2dmem.memRvalid
-  dmmu.io.dmemreq.memWrDone := false.B
+  dmmu.io.dmemreq.memWrDone := io.flush
   dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata
   mem.io.mem2dmem.memWrDone := io.mem2dmem.memWrDone
   mem.io.mem2dmem.memRvalid := io.mem2dmem.memRvalid
@@ -133,7 +141,7 @@ class EXU extends Module {
   mem.io.mem2dmem.memRdata  := io.mem2dmem.memRdata
 
 
-  io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq
+  io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq || op1Hazard || op2Hazard
   io.exe2Commit.exceInfo := mem.io.exceInfoOut
 
   // Pass through
@@ -145,7 +153,6 @@ class EXU extends Module {
 
   io.instBundleOut := io.instBundleIn
   io.instBundleOut.instValid := (~io.pauseReq) & io.instBundleIn.instValid
-}
 
 object EXU extends App {
   chisel3.Driver.execute(args, () => { new EXU })

@@ -7,11 +7,17 @@ import chisel3.util._
 import common.OpConstants._
 import common.Instructions._
 import common.{CSRRInstruction, RTypeInstruction}
+class commit2Exe extends Bundle {
+  val rdNum = UInt(5.W)
+  val wen = Bool()
+}
+
 class WBIO extends Bundle {
   val instBundleIn = Input(new InstBundle)
   val exe2Commit = Input(new Exe2Commit)
   val instBundleOut = Output(new InstBundle)
   val regfileWrite = Output(new RegWrite)
+  val commit2Exe = Output(new commit2Exe)
   val csrRw = Flipped(new commitCSR)
 }
 

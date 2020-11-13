@@ -52,7 +52,7 @@ class IFU extends Module {
   val paddrPCReg = RegInit(0.U(64.W))
 
   thisExce.cause := ExceptionNo.instrPageFault.U
-  thisExce.tval := thisInst
+  thisExce.tval := pc
   thisExce.epc := pc
   thisExce.valid := false.B
   io.ifu2dmem.memAddr := paddrPCReg

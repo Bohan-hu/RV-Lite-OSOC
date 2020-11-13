@@ -256,10 +256,6 @@ class ExceptionInfo extends Bundle {
   val valid = Bool()
 }
 
-class PLICCSR extends Bundle {
-  val intrVec = UInt(3.W)       // TODO: Should be defined by parameter
-  val meip = Bool()
-}
 
 class CLINTCSR extends Bundle {
   val mtip = Bool()
@@ -347,7 +343,6 @@ class CSRFile extends Module {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
 
-  // TODO: Didn't Implement UIE and UPIE yet
   val sstatus_read_mask = WireInit(0.U(64.W)).asTypeOf(new mstatus)
   sstatus_read_mask.SIE := true.B
   sstatus_read_mask.SPIE := true.B
@@ -397,10 +392,14 @@ class CSRFile extends Module {
   val midelegMask = WireInit(UInt(64.W),
     ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI))
   )
-  // Spec P77, SEIP , STIP is read-only, and SSIP is writable
-  val sipMask = WireInit(UInt(64.W),
-    (1.U << IntNo.SSI)
+  val sieMask = WireInit(UInt(64.W),
+    ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI)) & mideleg
   )
+  // Spec P77, SEIP , STIP is read-only, and SSIP is writable
+  // val sipMask = WireInit(UInt(64.W),
+  //   (1.U << IntNo.SSI) | mideleg
+  // )
+  val sipMask = WireInit(UInt(64.W),0.U)  // SIP is unwritable
 
   val mcounteren = RegInit(UInt(64.W), 0.U)
   val mcause = RegInit(UInt(64.W), 0.U)
@@ -493,12 +492,12 @@ class CSRFile extends Module {
 
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
-    CSRAddr.mip -> midelegMask, // TODO?
+    CSRAddr.mip -> 0.U, // TODO: Patch: Unwritable
     CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
-    CSRAddr.sie -> midelegMask,
+    CSRAddr.sie -> sieMask,
     CSRAddr.sip -> sipMask,
     // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
     // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
@@ -572,7 +571,7 @@ class CSRFile extends Module {
       mcause := io.commitCSR.exceptionInfo.cause
       mepc := io.commitCSR.exceptionInfo.epc
       mtval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
-        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||    // TODO: Wrong Implementation in Nutshell and Nemu
+        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallM.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallS.U ||
@@ -585,7 +584,7 @@ class CSRFile extends Module {
       scause := io.commitCSR.exceptionInfo.cause
       sepc := io.commitCSR.exceptionInfo.epc
       stval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
-        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U || // TODO: Wrong Implementation in Nutshell and Nemu
+        io.commitCSR.exceptionInfo.cause === ExceptionNo.illegalInstr.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.breakPoint.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallM.U ||
         io.commitCSR.exceptionInfo.cause === ExceptionNo.ecallS.U ||
@@ -594,7 +593,6 @@ class CSRFile extends Module {
   }
   // ================== Exception Handler Ends ===================
 
-  // TODO: Consider MPRV Bit
   val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U
   val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U
   val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011")
