@@ -70,12 +70,18 @@ class PTW(isDPTW: Boolean) extends Module {
   io.memReq.memRreq      := false.B
   io.pageFault           := false.B
   io.busy                := stateReg =/= sIDLE
-  io.tlbQuery.vaddr      := io.reqVAddr
   io.respPaddr           := 0.U
   io.memReq.memWdata     := 0.U
   io.memReq.memWen       := 0.U
   io.memReq.memWmask     := 0.U
   io.memReq.memAddr      := ptrReg
+  // TLB Update
+  io.tlbUpdate.pte := pteConverted
+  io.tlbUpdate.vpn := io.reqVAddr
+  io.tlbUpdate.is1G := false.B
+  io.tlbUpdate.is2M := false.B
+  io.tlbUpdate.is4K := false.B
+
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled
@@ -141,11 +147,17 @@ class PTW(isDPTW: Boolean) extends Module {
             is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0))}
             is(3.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, pteConverted.ppn0, io.reqVAddr(11,0))}
           }
+          switch(pteLevelReg) {
+            is(1.U) { io.tlbUpdate.is1G := true.B }
+            is(2.U) { io.tlbUpdate.is2M := true.B }
+            is(3.U) { io.tlbUpdate.is4K := true.B }
+          }
           if (isDPTW) { // isDPTW, check the following conditions
             // TODO: when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
             when((pteConverted.R || (pteConverted.X && io.mxr))) {
               stateReg := sIDLE
               io.respValid := true.B
+              io.tlbUpdate.valid := true.B
               pteLevelReg := 1.U
             }.otherwise {
               stateReg := sERROR
@@ -170,6 +182,7 @@ class PTW(isDPTW: Boolean) extends Module {
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
+              io.tlbUpdate.valid := true.B
               stateReg := sIDLE
               pteLevelReg := 1.U
             }

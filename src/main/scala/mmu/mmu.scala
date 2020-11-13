@@ -23,7 +23,7 @@ class MMUIO extends Bundle {
 class MMU (isDMMU: Boolean) extends Module {
   val io = IO(new MMUIO)
   // TODO： Add TLB Here
-  // val tlb = Module(new TLB)
+  val tlb = Module(new TLB)
   val ptw = Module(new PTW(isDMMU))
   // PTW <> MMU
   ptw.io.reqReady          := io.mem2mmu.reqReady
@@ -32,9 +32,10 @@ class MMU (isDMMU: Boolean) extends Module {
   io.mem2mmu.respValid     := ptw.io.respValid
   io.mem2mmu.respPageFault := ptw.io.pageFault
   
-  // Fake TLB(always miss)
-  ptw.io.tlbQuery.hit := false.B
-  ptw.io.tlbQuery.paddr := 0.U
+  // TLB
+  ptw.io.tlbQuery <> tlb.io.tlbQuery
+  ptw.io.tlbUpdate <> tlb.io.tlbUpdate
+  ptw.io.flush := io.flush
   
   // CSR ----> PTW Signals
   ptw.io.enableSv39        := io.csr2mmu.enableSv39
