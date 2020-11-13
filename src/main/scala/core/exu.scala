@@ -63,8 +63,8 @@ class EXU extends Module {
   val op1Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr1 && decode2Exe.R1ren && io.commit2Exe.wen && io.instBundleIn.instValid
   val op2Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr2 && decode2Exe.R2ren && io.commit2Exe.wen && io.instBundleIn.instValid
   */
-  val op1Hazard := false.B
-  val op2Hazard := false.B
+  val op1Hazard = false.B
+  val op2Hazard = false.B
 
   // Branch Unit
   val branchTakenCond = Array(
@@ -102,8 +102,8 @@ class EXU extends Module {
   divu.io.mduOp := io.decode2Exe.ALUOp
   divu.io.opValid := io.decode2Exe.FUType === FU_DIV && io.instBundleIn.instValid
 
-  io.exe2Commit.arithResult := Mux(io.decode2Exe.FUType === FU_ALU, alu.io.out, 
-                                Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult, divu.io.wbResult))
+  io.exe2Commit.arithResult := Mux(io.decode2Exe.FUType === FU_ALU, alu.io.out,
+    Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult, divu.io.wbResult))
 
   // Load / Store instruction
   // Can be exceptions
@@ -113,32 +113,32 @@ class EXU extends Module {
   // io.mem2dmem <> mem.io.mem2dmem
   dmmu.io.mem2mmu <> mem.io.mem2mmu
   dmmu.io.isStore := mem.io.MemType === MEM_AMO || mem.io.MemType === MEM_WRITE
-  dmmu.io.flush := false.B // TODO
+  dmmu.io.flush := io.flush
   dmmu.io.csr2mmu <> io.csr2mmu
 
-  mem.io.instPC           := io.instBundleIn.inst_pc
-  mem.io.MemType          := io.decode2Exe.MemType
-  mem.io.fuOp             := io.decode2Exe.ALUOp
-  mem.io.isMemOp          := io.decode2Exe.isMemOp & io.instBundleIn.instValid
-  mem.io.MemOp            := io.decode2Exe.MemOp
-  mem.io.baseAddr         := op1
-  mem.io.imm              := op2
-  mem.io.R2Val            := io.decode2Exe.R2val
-  mem.io.exceInfoIn       := io.decode2Exe.exceInfo
+  mem.io.instPC := io.instBundleIn.inst_pc
+  mem.io.MemType := io.decode2Exe.MemType
+  mem.io.fuOp := io.decode2Exe.ALUOp
+  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid
+  mem.io.MemOp := io.decode2Exe.MemOp
+  mem.io.baseAddr := op1
+  mem.io.imm := op2
+  mem.io.R2Val := io.decode2Exe.R2val
+  mem.io.exceInfoIn := io.decode2Exe.exceInfo
   io.exe2Commit.memResult := mem.io.memResult
-  
-  io.mem2dmem.memRreq       := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
-  io.mem2dmem.memWdata      := mem.io.mem2dmem.memWdata
-  io.mem2dmem.memWen        := mem.io.mem2dmem.memWen
-  io.mem2dmem.memWmask      := mem.io.mem2dmem.memWmask
-  io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
+
+  io.mem2dmem.memRreq := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
+  io.mem2dmem.memWdata := mem.io.mem2dmem.memWdata
+  io.mem2dmem.memWen := mem.io.mem2dmem.memWen
+  io.mem2dmem.memWmask := mem.io.mem2dmem.memWmask
+  io.mem2dmem.memAddr := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
   dmmu.io.dmemreq.memRvalid := io.mem2dmem.memRvalid
   dmmu.io.dmemreq.memWrDone := io.flush
-  dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata
+  dmmu.io.dmemreq.memRdata := io.mem2dmem.memRdata
   mem.io.mem2dmem.memWrDone := io.mem2dmem.memWrDone
   mem.io.mem2dmem.memRvalid := io.mem2dmem.memRvalid
-  dmmu.io.dmemreq.memRdata  := io.mem2dmem.memRdata
-  mem.io.mem2dmem.memRdata  := io.mem2dmem.memRdata
+  dmmu.io.dmemreq.memRdata := io.mem2dmem.memRdata
+  mem.io.mem2dmem.memRdata := io.mem2dmem.memRdata
 
 
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq || op1Hazard || op2Hazard
@@ -153,7 +153,7 @@ class EXU extends Module {
 
   io.instBundleOut := io.instBundleIn
   io.instBundleOut.instValid := (~io.pauseReq) & io.instBundleIn.instValid
-
+}
 object EXU extends App {
   chisel3.Driver.execute(args, () => { new EXU })
 }

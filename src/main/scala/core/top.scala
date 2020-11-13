@@ -55,7 +55,7 @@ class Top extends Module {
   // DECODER <> EXU
   exu.io.instBundleIn := decoder.io.instBundleOut
   exu.io.decode2Exe := decoder.io.decode2Exe
-  exu.io.flush := csrFile.io.ifRedir
+  exu.io.flush := csrFile.io.ifRedir.redir
   exu.io.csr2mmu <> csrFile.io.csrMMU
   exu.io.commit2Exe := wb.io.commit2Exe
 

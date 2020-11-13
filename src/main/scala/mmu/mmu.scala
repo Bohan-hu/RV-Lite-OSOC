@@ -36,7 +36,7 @@ class MMU (isDMMU: Boolean) extends Module {
   ptw.io.tlbQuery <> tlb.io.tlbQuery
   ptw.io.tlbUpdate <> tlb.io.tlbUpdate
   ptw.io.flush := io.flush
-  
+  tlb.io.flush := io.flush
   // CSR ----> PTW Signals
   ptw.io.enableSv39        := io.csr2mmu.enableSv39
   ptw.io.translation_ls_en := io.csr2mmu.enableLSVM

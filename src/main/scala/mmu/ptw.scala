@@ -51,7 +51,7 @@ class PTWIO extends Bundle {
   // TODO: TLB Query
   val tlbQuery = Flipped(new TLBQuery)
   // TODO: TLB Update
-  // val tlbUpdate = Flipped(new TLBUpdate)
+   val tlbUpdate = Output(new TLBEntry)
 
   // TODO: PMP Access Exception
 }
@@ -77,11 +77,12 @@ class PTW(isDPTW: Boolean) extends Module {
   io.memReq.memAddr      := ptrReg
   // TLB Update
   io.tlbUpdate.pte := pteConverted
-  io.tlbUpdate.vpn := io.reqVAddr
+  io.tlbUpdate.vpn := io.reqVAddr(38,12)
   io.tlbUpdate.is1G := false.B
   io.tlbUpdate.is2M := false.B
   io.tlbUpdate.is4K := false.B
-
+  io.tlbUpdate.valid := false.B
+  io.tlbQuery.vaddr := io.reqVAddr
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled
@@ -99,6 +100,11 @@ class PTW(isDPTW: Boolean) extends Module {
           stateReg := sWAIT_PTE_Entry
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
+        when( io.translation_ls_en && io.reqReady && io.tlbQuery.hit) {
+          stateReg := sIDLE
+          io.respValid := true.B
+          io.respPaddr := io.tlbQuery.paddr
+        }
       } else {
         when(!io.enableSv39) {
           io.respValid := true.B
@@ -107,6 +113,11 @@ class PTW(isDPTW: Boolean) extends Module {
         when(io.enableSv39 && io.reqReady && !io.tlbQuery.hit) { // Instruction Request
           stateReg := sWAIT_PTE_Entry
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
+        }
+        when( io.enableSv39 && io.reqReady && io.tlbQuery.hit) {
+          stateReg := sIDLE
+          io.respValid := true.B
+          io.respPaddr := io.tlbQuery.paddr
         }
       }
     }

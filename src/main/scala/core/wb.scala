@@ -23,6 +23,8 @@ class WBIO extends Bundle {
 
 class WB extends Module {
   val io = IO(new WBIO)
+  io.commit2Exe.rdNum := io.exe2Commit.RdNum
+  io.commit2Exe.wen := io.exe2Commit.RFWen & io.instBundleIn.instValid
   io.csrRw.exceptionInfo := io.exe2Commit.exceInfo
   io.csrRw.instPC := io.instBundleIn.inst_pc
   BoringUtils.addSource(RegNext(io.instBundleIn.instValid), "difftestCommit")
