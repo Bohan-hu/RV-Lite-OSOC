@@ -60,7 +60,7 @@ class PTW(isDPTW: Boolean) extends Module {
   val io = IO(new PTWIO)
   val sIDLE :: sWAIT_PTE_Entry :: sHANDLE_PTE_Entry :: sERROR :: sWAIT_AFTER_FLUSH :: Nil = Enum(5)
   val pteLevelReg        = Reg(UInt(2.W))
-  val stateReg           = Reg(UInt())
+  val stateReg           = RegInit(sIDLE)
   val ptrReg             = Reg(UInt(64.W))
   val isGlobalMappingReg = Reg(Bool())
   val pteReg             = Reg(UInt(64.W))
