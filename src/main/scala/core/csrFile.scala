@@ -561,7 +561,7 @@ class CSRFile extends Module {
   // Update the registers
   val mstatus_new = WireInit(0.U(64.W)).asTypeOf(new mstatus)
   mstatus_new := mstatus.asTypeOf(new mstatus)
-  when(io.commitCSR.exceptionInfo.valid) {
+  when(io.commitCSR.exceptionInfo.valid && io.commitCSR.instValid) {
     privMode := nextPrivLevel // Update the priv mode
     when(nextPrivLevel === M) { // Will trap to M Mode
       mstatus_new.MIE := false.B
@@ -593,9 +593,9 @@ class CSRFile extends Module {
   }
   // ================== Exception Handler Ends ===================
 
-  val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U
-  val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U
-  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011")
+  val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U & io.commitCSR.instValid
+  val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U & io.commitCSR.instValid
+  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011") & io.commitCSR.instValid
   val isEret = isMret | isSret
   // ================== ERET Handler Begins ===================
   /*

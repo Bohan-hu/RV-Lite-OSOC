@@ -188,7 +188,7 @@ class Decode extends Module {
       IMM_ZEXT -> extractImm(new CSRIInstruction),
       IMM_ZERO -> 0.U
     ))
-  io.decode2Exe.instValid := (inst_valid & io.instBundleIn.instValid) | (io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U)
+  io.decode2Exe.instValid := ((inst_valid | (io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U) ) & io.instBundleIn.instValid)
   io.decode2Exe.BrType := br_Type
   io.decode2Exe.R1ren := rs1Ren
   io.decode2Exe.R2ren := rs2Ren

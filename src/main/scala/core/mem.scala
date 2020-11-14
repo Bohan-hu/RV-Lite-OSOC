@@ -283,10 +283,10 @@ class MEM extends Module {
     is(sWAIT_RD) {
       io.mem2dmem.memRreq := true.B
       io.pauseReq := true.B
-      when(io.mem2dmem.memRvalid & !isAMO) {
+      when(io.mem2dmem.memRvalid & !(isAMO & ~isLR)) {
         io.pauseReq := false.B
         state := sIDLE
-      }.elsewhen(io.mem2dmem.memRvalid & isAMO) {
+      }.elsewhen(io.mem2dmem.memRvalid & (isAMO & ~isLR)) {
         state := sWAIT_WR
         rDataReg := dataFromMem
       }
@@ -306,7 +306,7 @@ class MEM extends Module {
   }
 
   // MMIO Flag
-  BoringUtils.addSource(RegNext(io.isMemOp & isMMIO), "difftestIsMMIO")
+  BoringUtils.addSource(RegNext(RegNext(io.isMemOp & isMMIO)), "difftestIsMMIO")
   when(accessVAddr === 0x807FF000L.U & isStore) {
     // printf("Writing to &SATP: %x\n", io.R2Val)
   }

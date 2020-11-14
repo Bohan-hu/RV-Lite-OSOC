@@ -59,12 +59,13 @@ class EXU extends Module {
   val op1 = io.decode2Exe.Op1
   val op2 = io.decode2Exe.Op2
   val rs2 = io.decode2Exe.R2val
-  /*
-  val op1Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr1 && decode2Exe.R1ren && io.commit2Exe.wen && io.instBundleIn.instValid
-  val op2Hazard = io.commit2Exe.rdNum === decode2Exe.Raddr2 && decode2Exe.R2ren && io.commit2Exe.wen && io.instBundleIn.instValid
-  */
-  val op1Hazard = false.B
-  val op2Hazard = false.B
+//  /*
+  val op1Hazard = io.commit2Exe.rdNum === io.decode2Exe.Raddr1 && io.decode2Exe.R1ren && io.commit2Exe.wen && io.instBundleIn.instValid
+  val op2Hazard = io.commit2Exe.rdNum === io.decode2Exe.Raddr2 && io.decode2Exe.R2ren && io.commit2Exe.wen && io.instBundleIn.instValid
+  val opHazard = op1Hazard | op2Hazard
+//  */
+//  val op1Hazard = false.B
+//  val op2Hazard = false.B
 
   // Branch Unit
   val branchTakenCond = Array(
@@ -78,7 +79,7 @@ class EXU extends Module {
     BR_LT -> (op1.asSInt < rs2.asSInt),
     BR_LTU -> (op1 < rs2)
   )
-  io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond) & io.instBundleIn.instValid
+  io.exe2IF.redir := MuxLookup(io.decode2Exe.BrType, false.B, branchTakenCond) & io.instBundleIn.instValid & !opHazard
   io.exe2IF.TargetPC := Mux(io.decode2Exe.BrType === BR_JR, op1 + op2, io.instBundleIn.inst_pc + op2)
 
   // Arith Instruction
@@ -93,17 +94,16 @@ class EXU extends Module {
   mulu.io.opA := op1
   mulu.io.opB := op2
   mulu.io.mduOp := io.decode2Exe.ALUOp
-  mulu.io.opValid := io.decode2Exe.FUType === FU_MUL && io.instBundleIn.instValid
+  mulu.io.opValid := io.decode2Exe.FUType === FU_MUL && io.instBundleIn.instValid & !io.flush & !opHazard
 
   // Division instruction
   val divu = Module(new Divider)
   divu.io.opA := op1
   divu.io.opB := op2
   divu.io.mduOp := io.decode2Exe.ALUOp
-  divu.io.opValid := io.decode2Exe.FUType === FU_DIV && io.instBundleIn.instValid
+  divu.io.opValid := io.decode2Exe.FUType === FU_DIV && io.instBundleIn.instValid  & !io.flush & !opHazard
 
-  io.exe2Commit.arithResult := Mux(io.decode2Exe.FUType === FU_ALU, alu.io.out,
-    Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult, divu.io.wbResult))
+
 
   // Load / Store instruction
   // Can be exceptions
@@ -119,13 +119,12 @@ class EXU extends Module {
   mem.io.instPC := io.instBundleIn.inst_pc
   mem.io.MemType := io.decode2Exe.MemType
   mem.io.fuOp := io.decode2Exe.ALUOp
-  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid
+  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid & !io.flush & !opHazard
   mem.io.MemOp := io.decode2Exe.MemOp
   mem.io.baseAddr := op1
   mem.io.imm := op2
   mem.io.R2Val := io.decode2Exe.R2val
   mem.io.exceInfoIn := io.decode2Exe.exceInfo
-  io.exe2Commit.memResult := mem.io.memResult
 
   io.mem2dmem.memRreq := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
   io.mem2dmem.memWdata := mem.io.mem2dmem.memWdata
@@ -142,17 +141,23 @@ class EXU extends Module {
 
 
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq || op1Hazard || op2Hazard
-  io.exe2Commit.exceInfo := mem.io.exceInfoOut
 
+  // To next stage
+  io.exe2Commit.exceInfo := RegNext(mem.io.exceInfoOut)
+  io.exe2Commit.arithResult := RegNext(Mux(io.decode2Exe.FUType === FU_ALU, alu.io.out,
+    Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult, divu.io.wbResult)))
+  io.exe2Commit.memResult := RegNext(mem.io.memResult)
   // Pass through
-  io.exe2Commit.RdNum := io.decode2Exe.RdNum
-  io.exe2Commit.WBSel := io.decode2Exe.WBSel
-  io.exe2Commit.RFWen := io.decode2Exe.RFWen
-  io.exe2Commit.CSRCmd := io.decode2Exe.CSRCmd
-  io.exe2Commit.isFence := io.decode2Exe.isFence
+  io.exe2Commit.RdNum := RegNext(io.decode2Exe.RdNum)
+  io.exe2Commit.WBSel := RegNext(io.decode2Exe.WBSel)
+  io.exe2Commit.RFWen := RegNext(io.decode2Exe.RFWen)
+  io.exe2Commit.CSRCmd := RegNext(io.decode2Exe.CSRCmd)
+  io.exe2Commit.isFence := RegNext(io.decode2Exe.isFence)
 
-  io.instBundleOut := io.instBundleIn
-  io.instBundleOut.instValid := (~io.pauseReq) & io.instBundleIn.instValid
+  io.instBundleOut := RegNext(io.instBundleIn)
+  io.instBundleOut.instValid := RegNext(Mux(io.flush, false.B, !io.pauseReq & io.instBundleIn.instValid))
+  //   io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
+
 }
 object EXU extends App {
   chisel3.Driver.execute(args, () => { new EXU })
