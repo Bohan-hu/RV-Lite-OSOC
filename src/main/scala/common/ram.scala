@@ -82,7 +82,7 @@ class SyncReadWriteMem extends Module {
   val io = IO(new Bundle() {
     val clk = Input(Bool())
     val reset = Input(Bool())
-    val mem2dmem = Flipped(new MEM2dmem)
+    val mem2dmem = Flipped(new NaiveBusM2S)
   })
   val ram = Module(new RAMHelper)
   ram.io.clk := io.clk

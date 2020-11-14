@@ -2,7 +2,7 @@ package mmu
 import core.MMIO
 import chisel3._
 import chisel3.util._
-import _root_.core.MEM2dmem
+import _root_.core.NaiveBusM2S
 
 class PTE extends Bundle {
   val reversed = UInt(10.W)
@@ -47,7 +47,7 @@ class PTWIO extends Bundle {
   val satp_PPN = Input(UInt(44.W))
   val mxr = Input(Bool())
   // DMem request
-  val memReq = new MEM2dmem
+  val memReq = new NaiveBusM2S
   // TODO: TLB Query
   val tlbQuery = Flipped(new TLBQuery)
   // TODO: TLB Update
@@ -83,6 +83,7 @@ class PTW(isDPTW: Boolean) extends Module {
   io.tlbUpdate.is4K := false.B
   io.tlbUpdate.valid := false.B
   io.tlbQuery.vaddr := io.reqVAddr
+  io.memReq.memSize      := "b011".U
   // TODO: Handle SUM
   // If TLB hit, stay in IDLE mode
   // Also need to consider whether the Sv39 translation is enabled

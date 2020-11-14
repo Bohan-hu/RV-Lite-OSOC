@@ -256,6 +256,10 @@ class ExceptionInfo extends Bundle {
   val valid = Bool()
 }
 
+class PLICCSR extends Bundle {
+  val intrVec = UInt(3.W)       // TODO: Should be defined by parameter
+  val meip = Bool()
+}
 
 class CLINTCSR extends Bundle {
   val mtip = Bool()
@@ -323,6 +327,7 @@ class CSRIO extends Bundle {
   val clintIn = Input(new CLINTCSR)
 
   val decodePrivCheck = new DecodePrivCheck
+  val meip = Input(Bool())
 }
 
 class CSRFile extends Module {

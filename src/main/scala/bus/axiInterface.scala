@@ -1,223 +1,256 @@
 package bus
+import core._
+import core.NaiveBusM2S
 import chisel3._
 import chisel3.util._
 import chisel3.stage.ChiselStage
-class CPUInstReq extends Bundle {
-  val req = Bool()
-  val addr = UInt(64.W)
+import _root_.core.MMIO
+/*
+class NaiveBusM2S extends Bundle {
+  val memRreq   = Output(Bool())
+  val memAddr   = Output(UInt(64.W))
+  val memRdata  = Input(UInt(64.W))
+  val memRvalid = Input(Bool())
+  val memWdata  = Output(UInt(64.W))
+  val memWmask  = Output(UInt(64.W))
+  val memWen    = Output(Bool())
+  val memWrDone = Input(Bool())
 }
-
-class CPUInstResp extends Bundle {
-  val inst = UInt(32.W)
-  val valid = Bool()
-}
-
-class CPUDataReq extends Bundle {
-  val req = Bool()
-  val isWrite = Bool()
-  val addr = UInt(64.W)
-  val size = UInt(3.W)
-  val wData = UInt(64.W)
-  val wStrb = UInt(8.W)  // 8 Bytes
-  val wLast = Bool()
-}
-
-class CPUDataResp extends Bundle {
-  val valid = Bool()
-  val write_done = Bool()
-  val rdata = UInt(64.W)
-}
-
+*/
 class AXIMaster extends Bundle {
 
-  val arid     = Output(UInt(4.W))
-  val araddr   = Output(UInt(64.W))
-  val arlen    = Output(UInt(4.W))
+  val arid     = Output(UInt(1.W))
+  val araddr   = Output(UInt(32.W))
+  val arlen    = Output(UInt(8.W))
   val arsize   = Output(UInt(3.W))
   val arburst  = Output(UInt(2.W))
-  val arlock   = Output(UInt(2.W))
-  val arcache  = Output(UInt(2.W))
+  val arlock   = Output(Bool())
+  val arcache  = Output(UInt(4.W))
+  val aruser   = Output(Bool())
   val arprot   = Output(UInt(3.W))
   val arvalid  = Output(Bool())
+  val arqos    = Output(UInt(4.W))
   val arready  = Input(Bool())
 
   val rid      = Input(UInt(3.W))
   val rdata    = Input(UInt(64.W))
   val rresp    = Input(UInt(2.W))
   val rlast    = Input(Bool())
+  val ruser    = Input(Bool())
   val rvalid   = Input(Bool())
   val rready   = Output(Bool())
 
-  val awid     = Output(UInt(4.W))
-  val awaddr   = Output(UInt(64.W))
-  val awlen    = Output(UInt(4.W))
+  val awid     = Output(UInt(1.W))
+  val awaddr   = Output(UInt(32.W))
+  val awlen    = Output(UInt(8.W))
   val awsize   = Output(UInt(3.W))
   val awburst  = Output(UInt(2.W))
-  val awlock   = Output(UInt(2.W))
+  val awlock   = Output(Bool())
   val awcache  = Output(UInt(4.W))
   val awprot   = Output(UInt(3.W))
   val awvalid  = Output(Bool())
+  val awqos    = Output(UInt(4.W))
+  val awuser   = Output(Bool())
   val awready  = Input(Bool())
 
-  val wid      = Output(UInt(4.W))
+  val wid      = Output(UInt(1.W))
   val wdata    = Output(UInt(64.W))
-  val wstrb    = Output(UInt(4.W))
+  val wstrb    = Output(UInt(8.W))
   val wlast    = Output(Bool())
   val wvalid   = Output(Bool())
   val wready   = Input(Bool())
 
-  val bid      = Input(UInt(4.W))
+  val bid      = Input(UInt(1.W))
+  val bresp    = Input(UInt(2.W))
+  val buser    = Input(Bool())
+  val bvalid   = Input(Bool())
+  val bready   = Output(Bool())
+}
+class AXILiteMaster extends Bundle {
+
+  val araddr   = Output(UInt(64.W))
+  val arprot   = Output(UInt(3.W))
+  val arvalid  = Output(Bool())
+  val arready  = Input(Bool())
+
+  val rdata    = Input(UInt(64.W))
+  val rresp    = Input(UInt(2.W))
+  val rvalid   = Input(Bool())
+  val rready   = Output(Bool())
+
+  val awaddr   = Output(UInt(64.W))
+  val awprot   = Output(UInt(3.W))
+  val awvalid  = Output(Bool())
+  val awready  = Input(Bool())
+
+  val wdata    = Output(UInt(64.W))
+  val wstrb    = Output(UInt(8.W))
+  val wvalid   = Output(Bool())
+  val wready   = Input(Bool())
+
   val bresp    = Input(UInt(2.W))
   val bvalid   = Input(Bool())
   val bready   = Output(Bool())
 }
-
 class BridgeIO extends Bundle {
-  val instReq = Input(new CPUInstReq)
-  val instResp = Output(new CPUInstResp)
-  val dataReq = Input(new CPUDataReq)
-  val dataResp = Output(new CPUDataResp)
+  val ifuPort = Flipped(new NaiveBusM2S)
+  val lsuPort = Flipped(new NaiveBusM2S)
   val axiMaster = new AXIMaster
+  val axiLiteMaster = new AXILiteMaster
 }
 
 class AXIBridge extends Module {
   val io = IO(new BridgeIO)
-  val sIDLE :: sSEND_RADDR_IREQ :: sWAIT_RDATA_IREQ :: sSEND_RADDR_DREQ :: sWAIT_RDATA_DREQ  :: sSEND_WADDR_DREQ :: sSEND_WDATA_DREQ :: sWAIT_WRESP_DREQ :: Nil = Enum(8)
-  io.axiMaster.arvalid := io.instReq.req | io.dataReq.req
-  io.axiMaster.arid := Mux(io.dataReq.req, 1.U, 0.U) // Data requst has higher priority than inst request
-  io.axiMaster.araddr := Mux(io.dataReq.req, io.dataReq.addr, io.instReq.addr)
-  
-  // Fixed value
-  // Bust Mode: Incr
-  io.axiMaster.arburst := "b01".U
-  io.axiMaster.awburst := "b01".U
+  val sIDLE :: sSEND_W_ADDR :: sSEND_R_ADDR :: sRECEIVE_DATA :: sSEND_DATA  :: sWAIT_WRESP :: Nil = Enum(6)
+  val addr =  Mux(io.lsuPort.memRreq | io.lsuPort.memWen, io.lsuPort.memAddr, io.ifuPort.memAddr)
+  // 8 Bytes in one transfer(Two instructions)
+  val instReqArSz = WireInit("b011".U)
+  dontTouch(io.axiMaster.awuser)
+  dontTouch(io.axiMaster.awqos)
+  dontTouch(io.axiMaster.aruser)
+  // AR
+  io.axiMaster.arid := Mux(io.lsuPort.memRreq, 1.U, 0.U) // Data requst has higher priority than inst request, data rid = 1
+  io.axiMaster.araddr := addr 
   io.axiMaster.arlock := 0.U
   io.axiMaster.arcache := 0.U
   io.axiMaster.arprot := 0.U
+  io.axiMaster.arburst := "b01".U 
+  io.axiMaster.arlen := 0.U // No burst request now  
+  io.axiMaster.arsize := Mux(io.lsuPort.memRreq, io.lsuPort.memSize, instReqArSz) 
+  io.axiMaster.arvalid := false.B
+  io.axiLiteMaster.arvalid := false.B // Initial value
+  io.axiLiteMaster.araddr := addr 
+  io.axiLiteMaster.arprot := 0.U
+  io.axiLiteMaster.arvalid := false.B // Initial value
+  io.axiMaster.arqos := 0.U
+
+  // R
+  // io.axiMaster.rready := (*Depnedent on the state) 
+  io.axiMaster.rready := false.B 
+  io.axiLiteMaster.rready := false.B 
+  // R
+  io.axiMaster.rready := false.B 
+  io.axiLiteMaster.rready := false.B 
+  // AW
+  // Bust Mode: Incr
+  io.axiMaster.awburst := "b01".U
+  io.axiMaster.awaddr := io.lsuPort.memAddr
   io.axiMaster.awcache := 0.U
-  io.axiMaster.awid := 0.U
+  io.axiMaster.awid := 1.U
   io.axiMaster.awlock := 0.U
   io.axiMaster.awprot := 0.U
-  io.axiMaster.wid := 0.U
-
-  // 8 Bytes in one transfer(Two instructions)
-  val instReqArSz = WireInit("b011".U)
+  io.axiMaster.awlen := 0.U      // No burst request now  
+  io.axiMaster.awsize := io.lsuPort.memSize 
+  io.axiMaster.awvalid := false.B 
+  io.axiLiteMaster.awvalid := false.B 
+  io.axiLiteMaster.awaddr := io.lsuPort.memAddr
+  io.axiLiteMaster.awprot := 0.U
+  // W
+  io.axiMaster.wid := 1.U
+  io.axiMaster.wdata    := io.lsuPort.memWdata
+  io.axiMaster.wstrb    := io.lsuPort.memWmask
+  io.axiMaster.wlast    := true.B
+  io.axiMaster.wvalid   := false.B
+  io.axiLiteMaster.wdata    := io.lsuPort.memWdata
+  io.axiLiteMaster.wstrb    := io.lsuPort.memWmask
+  io.axiLiteMaster.wvalid   := false.B
+  // B
+  io.axiMaster.bready := true.B
+  io.axiLiteMaster.bready := true.B
+  val isMMIO = MMIO.inMMIORange(addr)
   // Data transfer should depend on the Mem Op
   val state = RegInit(sIDLE)
+  // Regs to remeber address and id
+  val addrReg = Reg(UInt(64.W))
+  val idReg = Reg(UInt(4.W))
+  val isMMIOReg = Reg(Bool())
   // State Transfer Logic
-  io.instResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_IREQ
-  io.instResp.inst := Mux(io.instReq.addr(2), io.axiMaster.rdata(63, 32), io.axiMaster.rdata(31, 0))
-  io.dataResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_DREQ
-  io.dataResp.rdata := io.axiMaster.rdata
-  io.dataResp.write_done := io.axiMaster.bvalid && state === sWAIT_WRESP_DREQ
+  val rValid = Mux(isMMIOReg, io.axiLiteMaster.rvalid, io.axiMaster.rvalid && io.axiMaster.rlast)
+  val rData = Mux(isMMIOReg, io.axiLiteMaster.rdata, io.axiMaster.rdata)
+  val bValid = Mux(isMMIOReg, io.axiLiteMaster.bvalid, io.axiMaster.bvalid)
+  io.ifuPort.memRvalid := rValid && idReg === 0.U
+  io.ifuPort.memRdata := Mux(io.ifuPort.memAddr(2), rData(63, 32), rData(31, 0))
+  io.ifuPort.memWrDone := false.B
+  io.lsuPort.memRvalid := rValid && idReg === 1.U 
+  io.lsuPort.memRdata := rData 
+  io.lsuPort.memWrDone := bValid && idReg === 1.U
   switch(state) {
     is(sIDLE) {
-      when(io.dataReq.req && io.dataReq.isWrite) {
-        state := sSEND_WADDR_DREQ
-      }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite) {
-        state := sSEND_RADDR_DREQ
-      }.elsewhen(io.instReq.req) {
-        state := sSEND_RADDR_IREQ
+      when(io.lsuPort.memWen) {
+        state := sSEND_W_ADDR
+        addrReg := io.lsuPort.memAddr
+        idReg := io.axiMaster.awid
+        isMMIOReg := isMMIO
+      }.elsewhen(io.ifuPort.memRreq | io.lsuPort.memRreq) {
+        state := sSEND_R_ADDR
+        idReg := io.axiMaster.arid
+        addrReg := addr
+        isMMIOReg := isMMIO
       }
     }
-    is(sSEND_RADDR_IREQ) {
-      when(io.axiMaster.arready) {
-        state := sWAIT_RDATA_IREQ
+    is(sSEND_R_ADDR) {
+      when(isMMIOReg) {
+        io.axiLiteMaster.arvalid := true.B
+        when(io.axiLiteMaster.arready) {
+          state := sRECEIVE_DATA
+        }
+      }.otherwise{
+        io.axiMaster.arvalid := true.B
+        when(io.axiMaster.arready) {
+          state := sRECEIVE_DATA
+        }
       }
     }
-    is(sWAIT_RDATA_IREQ) {
-      when(io.axiMaster.rvalid && io.axiMaster.rlast) {
-        state := sIDLE
+    is(sRECEIVE_DATA) {
+      when(isMMIOReg) {
+        io.axiLiteMaster.rready := true.B
+        when(io.axiLiteMaster.rvalid) {
+          state := sIDLE
+        }
+      }.otherwise {
+        io.axiMaster.rready := true.B
+        when(io.axiMaster.rvalid && io.axiMaster.rlast) {
+          state := sIDLE
+        }
       }
     }
-    is(sSEND_WADDR_DREQ) {
-      when(io.axiMaster.awready) {
-        state := sSEND_WDATA_DREQ
-      }
-    }
-    is(sSEND_WDATA_DREQ) {
-      when(io.axiMaster.wready) {
-        state := sWAIT_WRESP_DREQ
-      }
-    }
-    is(sWAIT_WRESP_DREQ) {
-      when(io.axiMaster.bvalid) {
-        state := sIDLE
-      }
-    }
-    is(sSEND_RADDR_DREQ) {
-      when(io.axiMaster.arready) {
-        state := sWAIT_RDATA_DREQ
-      }
-    }
-    is(sWAIT_RDATA_DREQ) {
-      when(io.axiMaster.rvalid && io.axiMaster.rlast){
-        state := sIDLE
-      }
-    }
-  }
-  // Assign outputs
-  io.axiMaster.awaddr := io.dataReq.addr  // Only data has write request
-  io.axiMaster.awsize := io.dataReq.size
-  io.axiMaster.wdata := io.dataReq.wData
-  io.axiMaster.wstrb := io.dataReq.wStrb
-  io.axiMaster.arvalid := false.B
-  io.axiMaster.awvalid := false.B
-  io.axiMaster.arsize := "b011".U
-  io.axiMaster.wvalid := false.B
-  io.axiMaster.bready := true.B
-  io.axiMaster.rready := false.B
-  io.axiMaster.wlast := false.B
-  io.axiMaster.awlen := 0.U     // Do not Burst
-  io.axiMaster.arlen := 0.U     // Do not Burst
-
-    switch(state) {
-    is(sIDLE) {
-      when(io.dataReq.req && io.dataReq.isWrite) {
-        io.axiMaster.awaddr := io.dataReq.addr
-        io.axiMaster.awsize := io.dataReq.size
+    is(sSEND_W_ADDR) {
+      when(isMMIOReg) {
+        io.axiLiteMaster.awvalid := true.B
+        when(io.axiLiteMaster.awready) {
+          state := sSEND_DATA
+        } 
+      }.otherwise{
         io.axiMaster.awvalid := true.B
-      }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite) {
-        io.axiMaster.araddr := io.dataReq.addr
-        io.axiMaster.arvalid := true.B
-        io.axiMaster.arsize := io.dataReq.size
-      }.elsewhen(io.instReq.req) {
-        io.axiMaster.araddr := io.instReq.addr
-        io.axiMaster.arvalid := true.B
-        io.axiMaster.arsize := "b011".U
+        when(io.axiMaster.awready) {
+          state := sSEND_DATA
+        }
       }
     }
-    is(sSEND_RADDR_IREQ) {
-      io.axiMaster.araddr := io.instReq.addr
-      io.axiMaster.arvalid := true.B
-      io.axiMaster.arsize := "b011".U
+    is(sSEND_DATA) {
+      when(isMMIOReg) {
+        io.axiLiteMaster.wvalid := true.B
+        when(io.axiLiteMaster.wready) {
+          state := sWAIT_WRESP
+        }
+      }.otherwise{
+        io.axiMaster.wvalid := true.B
+        io.axiMaster.wlast := true.B
+        when(io.axiMaster.wready) {
+          state := sWAIT_WRESP
+        }
+      }
     }
-    is(sWAIT_RDATA_IREQ) {
-      io.axiMaster.rready := true.B
-    }
-    is(sSEND_WADDR_DREQ) {
-      io.axiMaster.awaddr := io.dataReq.addr
-      io.axiMaster.awsize := io.dataReq.size
-      io.axiMaster.awvalid := true.B
-    }
-    is(sSEND_WDATA_DREQ) {
-      io.axiMaster.wvalid := true.B
-      io.axiMaster.wlast := true.B
-      io.axiMaster.wid := 0.U
-    }
-    is(sWAIT_WRESP_DREQ) {
-      
-    }
-    is(sSEND_RADDR_DREQ) {
-      io.axiMaster.araddr := io.dataReq.addr
-      io.axiMaster.arvalid := true.B
-    }
-    is(sWAIT_RDATA_DREQ) {
-      io.axiMaster.rready := true.B
+    is(sWAIT_WRESP) {
+      when( (io.axiMaster.bvalid && !isMMIOReg) | (io.axiLiteMaster.bvalid && isMMIOReg) ) {
+        state := sIDLE
+      }
     }
   }
+  io.axiMaster.awuser := 0.U
+  io.axiMaster.awqos := 0.U
+  io.axiMaster.aruser := 0.U
 }
-
 object AXIBridge extends App {
   val stage = new ChiselStage
   stage.emitVerilog(new AXIBridge)

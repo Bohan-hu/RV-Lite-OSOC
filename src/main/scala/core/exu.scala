@@ -47,7 +47,7 @@ class EXUIO extends Bundle {
   val exe2Commit = Output(new Exe2Commit)
   val commit2Exe = Input(new commit2Exe)
   val instBundleOut = Output(new InstBundle)
-  val mem2dmem = new MEM2dmem
+  val mem2dmem = new NaiveBusM2S
   val toclint  = Flipped(new MEMCLINT)
   val csr2mmu = Flipped(new CSRMMU)
   val flush = Input(Bool())
@@ -116,28 +116,29 @@ class EXU extends Module {
   dmmu.io.flush := io.flush
   dmmu.io.csr2mmu <> io.csr2mmu
 
-  mem.io.instPC := io.instBundleIn.inst_pc
-  mem.io.MemType := io.decode2Exe.MemType
-  mem.io.fuOp := io.decode2Exe.ALUOp
-  mem.io.isMemOp := io.decode2Exe.isMemOp & io.instBundleIn.instValid & !io.flush & !opHazard
-  mem.io.MemOp := io.decode2Exe.MemOp
-  mem.io.baseAddr := op1
-  mem.io.imm := op2
-  mem.io.R2Val := io.decode2Exe.R2val
-  mem.io.exceInfoIn := io.decode2Exe.exceInfo
-
-  io.mem2dmem.memRreq := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
-  io.mem2dmem.memWdata := mem.io.mem2dmem.memWdata
-  io.mem2dmem.memWen := mem.io.mem2dmem.memWen
-  io.mem2dmem.memWmask := mem.io.mem2dmem.memWmask
-  io.mem2dmem.memAddr := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
+  mem.io.instPC           := io.instBundleIn.inst_pc
+  mem.io.MemType          := io.decode2Exe.MemType
+  mem.io.fuOp             := io.decode2Exe.ALUOp
+  mem.io.isMemOp          := io.decode2Exe.isMemOp & io.instBundleIn.instValid
+  mem.io.MemOp            := io.decode2Exe.MemOp
+  mem.io.baseAddr         := op1
+  mem.io.imm              := op2
+  mem.io.R2Val            := io.decode2Exe.R2val
+  mem.io.exceInfoIn       := io.decode2Exe.exceInfo
+  io.exe2Commit.memResult := mem.io.memResult
+  
+  io.mem2dmem.memRreq       := mem.io.mem2dmem.memRreq | dmmu.io.dmemreq.memRreq
+  io.mem2dmem.memWdata      := mem.io.mem2dmem.memWdata
+  io.mem2dmem.memWen        := mem.io.mem2dmem.memWen
+  io.mem2dmem.memWmask      := mem.io.mem2dmem.memWmask
+  io.mem2dmem.memAddr       := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memAddr, mem.io.mem2dmem.memAddr)
+  io.mem2dmem.memSize       := Mux(dmmu.io.dmemreq.memRreq, dmmu.io.dmemreq.memSize, mem.io.mem2dmem.memSize)
   dmmu.io.dmemreq.memRvalid := io.mem2dmem.memRvalid
   dmmu.io.dmemreq.memWrDone := io.flush
   dmmu.io.dmemreq.memRdata := io.mem2dmem.memRdata
   mem.io.mem2dmem.memWrDone := io.mem2dmem.memWrDone
   mem.io.mem2dmem.memRvalid := io.mem2dmem.memRvalid
-  dmmu.io.dmemreq.memRdata := io.mem2dmem.memRdata
-  mem.io.mem2dmem.memRdata := io.mem2dmem.memRdata
+  mem.io.mem2dmem.memRdata  := io.mem2dmem.memRdata
 
 
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq || op1Hazard || op2Hazard
