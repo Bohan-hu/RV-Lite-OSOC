@@ -83,14 +83,15 @@ object CSRAddr {
   val mtinst = 0x34a.U
   val mtval2 = 0x34b.U
   // Machine Memory Protection.U
-  val pmpcfg0 = 0x3a0.U
+  val pmpcfg0 = 0x3a0.U  
+  val pmpcfg1 = 0x3a1.U
   val pmpcfg2 = 0x3a2.U
-  val pmpcfg4 = 0x3a4.U
-  val pmpcfg6 = 0x3a6.U
-  val pmpcfg8 = 0x3a8.U
-  val pmpcfg10 = 0x3aa.U
-  val pmpcfg12 = 0x3ac.U
-  val pmpcfg14 = 0x3ae.U
+  val pmpcfg3 = 0x3a3.U
+  val pmpaddr0 = 0x3B0.U
+  val pmpaddr1 = 0x3B1.U
+  val pmpaddr2 = 0x3B2.U
+  val pmpaddr3 = 0x3B3.U
+
   // TODO:PMPADD.UR.Ux
 
 
@@ -288,6 +289,8 @@ class CSRMMU extends Bundle {
 
 class commitCSR extends Bundle {
   val instValid = Input(Bool())
+  val inst = Input(UInt(32.W))
+  val instPC = Input(UInt(64.W))
   val csrWData = Input(UInt(64.W))
   val csrAddr = Input(UInt(12.W))
   val csrOp = Input(UInt(3.W))
@@ -302,6 +305,15 @@ class ExceptionRedir extends Bundle {
   val redir = Bool()
 }
 
+class DecodePrivCheck extends Bundle {
+  val csrAddr = Input(UInt(12.W))
+  val csrOp = Input(UInt(3.W))
+  val instRd = Input(UInt(5.W))
+  val instRs = Input(UInt(5.W))
+  val instImm = Input(UInt(32.W))
+  val illegalInst = Output(Bool())
+}
+
 class CSRIO extends Bundle {
   val commitCSR = new commitCSR
   val illegalInst = Output(Bool())
@@ -313,6 +325,9 @@ class CSRIO extends Bundle {
   // To decoder, let decoder handle the interrupt
   val intCtrl = Output(new INTCtrl)
   val clintIn = Input(new CLINTCSR)
+
+  val decodePrivCheck = new DecodePrivCheck
+  val meip = Input(Bool())
 }
 
 class CSRFile extends Module {
@@ -320,10 +335,11 @@ class CSRFile extends Module {
   val M = "b11".U
   val S = "b01".U
   val U = "b00".U
+
   val accessCSRPriv = io.commitCSR.csrAddr(9, 8)
   //             IF the instruction is CSRRW / CSRRWI               else
-  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W))
-  val csrWen = io.commitCSR.instValid && !(io.commitCSR.csrOp === CSR_X ||
+  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W && io.commitCSR.csrOp =/= CSR_I))
+  val csrWen = io.commitCSR.instValid && !(io.commitCSR.csrOp === CSR_X || io.commitCSR.csrOp === CSR_I || 
     ((io.commitCSR.csrOp === CSR_S || io.commitCSR.csrOp === CSR_C) && io.commitCSR.instRs === 0.U) ||
     ((io.commitCSR.csrOp === CSR_SI || io.commitCSR.csrOp === CSR_CI) && io.commitCSR.csrWData === 0.U))
 
@@ -332,7 +348,6 @@ class CSRFile extends Module {
     (oldValue & (~mask).asUInt()) | (writeValue & mask)
   }
 
-  // TODO: Didn't Implement UIE and UPIE yet
   val sstatus_read_mask = WireInit(0.U(64.W)).asTypeOf(new mstatus)
   sstatus_read_mask.SIE := true.B
   sstatus_read_mask.SPIE := true.B
@@ -360,9 +375,9 @@ class CSRFile extends Module {
   BoringUtils.addSource(privMode, "difftestMode")
 
   // Hardwired Registers
-  val misa_extension = "I"
+  val misa_extension = "IMASUC" // Add C to cheat the Difftest
   val extension_val = misa_extension.map(e => 1 << (e - 'A')).reduce(_ | _).asUInt()
-  val misa = WireInit(UInt(64.W), Cat(2.U(2.W), 0.U(60.W)) | extension_val)
+  val misa = WireInit(UInt(64.W), Cat(2.U(2.W), 0.U(62.W)) | extension_val)
   val mvendorid = WireInit(UInt(32.W), 0.U)
   val marchid = WireInit(UInt(64.W), 0.U)
   val mimpid = WireInit(UInt(64.W), 0.U)
@@ -370,7 +385,7 @@ class CSRFile extends Module {
   // Configurable Registers
 
   // mtvec
-  val reset_mtvec = WireInit(0.U.asTypeOf(new mtvec_t)) // todo: determine the reset value
+  val reset_mtvec = WireInit(0.U.asTypeOf(new mtvec_t))
   reset_mtvec.BASE := 0.U
   reset_mtvec.MODE := 0.U
   val mtvec = RegInit(reset_mtvec.asUInt())
@@ -378,14 +393,18 @@ class CSRFile extends Module {
   // mdeleg and mideleg
   val medeleg = RegInit(UInt(64.W), 0.U) // Machine Exception Delegation Register
   val mideleg = RegInit(UInt(64.W), 0.U) // Machine Interrupt Delegation Register
-  val medelgAndMask = 1.U << 11 // medelg[11] is hardwired to zero
+  // val medelgAndMask = 1.U << 11 // medelg[11] is hardwired to zero
   val midelegMask = WireInit(UInt(64.W),
     ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI))
   )
-  // Spec P77, SEIP , STIP is read-only, and SSIP is writable
-  val sipMask = WireInit(UInt(64.W),
-    (1.U << IntNo.SSI)
+  val sieMask = WireInit(UInt(64.W),
+    ((1.U << IntNo.STI) | (1.U << IntNo.SEI) | (1.U << IntNo.SSI)) & mideleg
   )
+  // Spec P77, SEIP , STIP is read-only, and SSIP is writable
+  // val sipMask = WireInit(UInt(64.W),
+  //   (1.U << IntNo.SSI) | mideleg
+  // )
+  val sipMask = WireInit(UInt(64.W),0.U)  // SIP is unwritable
 
   val mcounteren = RegInit(UInt(64.W), 0.U)
   val mcause = RegInit(UInt(64.W), 0.U)
@@ -451,7 +470,16 @@ class CSRFile extends Module {
     CSRAddr.sepc -> sepc,
     CSRAddr.scause -> scause,
     CSRAddr.stval -> stval,
-    CSRAddr.satp -> satp
+    CSRAddr.satp -> satp,
+    // PMP
+    CSRAddr.pmpcfg0 -> pmpcfg0,
+    CSRAddr.pmpcfg1 -> pmpcfg1,
+    CSRAddr.pmpcfg2 -> pmpcfg2,
+    CSRAddr.pmpcfg3 -> pmpcfg3,
+    CSRAddr.pmpaddr0 -> pmpaddr0,
+    CSRAddr.pmpaddr1 -> pmpaddr1,
+    CSRAddr.pmpaddr2 -> pmpaddr2,
+    CSRAddr.pmpaddr3 -> pmpaddr3
   )
   // dontTouch(mip_o)
   // CSR Read Data
@@ -469,20 +497,15 @@ class CSRFile extends Module {
 
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
-    CSRAddr.mip -> midelegMask, // TODO?
+    CSRAddr.mip -> 0.U, // TODO: Patch: Unwritable
     CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
-    CSRAddr.medeleg -> ((1.U << ExceptionNo.instrAddrMisaligned) |
-      (1.U << ExceptionNo.breakPoint) |
-      (1.U << ExceptionNo.ecallU) |
-      (1.U << ExceptionNo.instrPageFault) |
-      (1.U << ExceptionNo.loadPageFault) |
-      (1.U << ExceptionNo.storePageFault)),
+    CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
-    CSRAddr.sie -> midelegMask,
+    CSRAddr.sie -> sieMask,
     CSRAddr.sip -> sipMask,
-    CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
-    CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
+    // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
+    // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
   )
   val sideEffectCSR = Map( // Address: Int -> (Initial Value: UInt, Write Value: UInt) => Return Value: UInt
@@ -522,8 +545,9 @@ class CSRFile extends Module {
     }
   )
   // Handle the MIP & SIP Case
+  val updateValMip = (Mux(isCsr_S | isCsr_C, csrRdata, 0.U) | io.commitCSR.csrWData) & (~Mux(isCsr_C, io.commitCSR.csrWData, 0.U)).asUInt()
   when( csrWen && io.commitCSR.csrAddr === CSRAddr.mip ) {
-    mip := maskedWrite(mip,io.commitCSR.csrWData, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+    mip := maskedWrite(mip, updateValMip, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
   }.otherwise {
     mip := mip & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
   }
@@ -542,7 +566,7 @@ class CSRFile extends Module {
   // Update the registers
   val mstatus_new = WireInit(0.U(64.W)).asTypeOf(new mstatus)
   mstatus_new := mstatus.asTypeOf(new mstatus)
-  when(io.commitCSR.exceptionInfo.valid) {
+  when(io.commitCSR.exceptionInfo.valid && io.commitCSR.instValid) {
     privMode := nextPrivLevel // Update the priv mode
     when(nextPrivLevel === M) { // Will trap to M Mode
       mstatus_new.MIE := false.B
@@ -561,6 +585,7 @@ class CSRFile extends Module {
       mstatus_new.SIE := false.B
       mstatus_new.SPIE := mstatus.asTypeOf(new mstatus).SIE
       mstatus_new.SPP := privMode(0)
+      mstatus := mstatus_new.asUInt()
       scause := io.commitCSR.exceptionInfo.cause
       sepc := io.commitCSR.exceptionInfo.epc
       stval := Mux(io.commitCSR.exceptionInfo.cause(63) ||
@@ -573,9 +598,9 @@ class CSRFile extends Module {
   }
   // ================== Exception Handler Ends ===================
 
-  // TODO: Consider MPRV Bit
-  val isMret = io.commitCSR.csrOp === CSR_I && privMode === M
-  val isSret = io.commitCSR.csrOp === CSR_I && privMode === S
+  val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U & io.commitCSR.instValid
+  val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U & io.commitCSR.instValid
+  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011") & io.commitCSR.instValid
   val isEret = isMret | isSret
   // ================== ERET Handler Begins ===================
   /*
@@ -606,7 +631,7 @@ class CSRFile extends Module {
   // ================== Exception Handler Entry Begins ===================
   val handlerBase = Wire(UInt(64.W))
   handlerBase := Cat(mtvec(63, 2), 0.U(2.W))
-  when(privMode === S) {
+  when(nextPrivLevel === S) {
     handlerBase := Cat(stvec(63, 2), 0.U(2.W))
   }
   val handlerEntry = WireInit(handlerBase)
@@ -617,7 +642,7 @@ class CSRFile extends Module {
   // ================== Exception Handler Entry Ends ===================
 
   // Decide whether to enable the Sv39
-  io.csrMMU.enableSv39 := (privMode =/= M || satp(63, 60) === 8.U)
+  io.csrMMU.enableSv39 := (privMode =/= M && satp(63, 60) === 8.U)
   io.csrMMU.asid := satp(59,44)
   io.csrMMU.mxr := mstatus.asTypeOf(new mstatus).MXR
   io.csrMMU.sum := mstatus.asTypeOf(new mstatus).SUM
@@ -625,7 +650,13 @@ class CSRFile extends Module {
   io.csrMMU.tsr := mstatus.asTypeOf(new mstatus).TSR
   io.csrMMU.tvm := mstatus.asTypeOf(new mstatus).TVM
   io.csrMMU.satpPPN := satp(43,0)
-  io.csrMMU.enableLSVM := false.B // TODO!!!
+
+  // Apply MPRV Rules
+  when(mstatus.asTypeOf(new mstatus).MPRV && satp(63, 60) === 8.U && (mstatus.asTypeOf(new mstatus).MPP =/= M)) {
+    io.csrMMU.enableLSVM := true.B
+  }.otherwise {
+    io.csrMMU.enableLSVM := io.csrMMU.enableSv39
+  }
 
   // To Decoder
   io.intCtrl.mie := mie
@@ -639,6 +670,7 @@ class CSRFile extends Module {
   io.intCtrl.intGlobalEnable := (mstatus.asTypeOf(new mstatus).MIE & privMode === M) | (privMode =/= M)
 
   // Redir
+  val needFlush = io.commitCSR.instValid && (isSFence || csrWen)
   io.ifRedir.redir := false.B
   io.ifRedir.redirPC := epc
   when(isEret && io.commitCSR.instValid) {
@@ -647,7 +679,31 @@ class CSRFile extends Module {
   }.elsewhen(io.commitCSR.exceptionInfo.valid  && io.commitCSR.instValid ) {
     io.ifRedir.redir := true.B
     io.ifRedir.redirPC := handlerEntry
+  }.elsewhen( needFlush ) {
+    io.ifRedir.redir := true.B
+    io.ifRedir.redirPC := io.commitCSR.instPC + 4.U
   }
+
+  // Check priv in decode stage
+  val decodeAccessCSRPriv = io.decodePrivCheck.csrAddr(9, 8)
+  //             IF the instruction is CSRRW / CSRRWI               else
+  val decodeCSRRen = ((io.decodePrivCheck.csrOp === CSR_W && io.decodePrivCheck.instRd =/= 0.U) || (io.decodePrivCheck.csrOp =/= CSR_X && io.decodePrivCheck.csrOp =/= CSR_W && io.decodePrivCheck.csrOp =/= CSR_I))
+  val decodeCSRWen = !(io.decodePrivCheck.csrOp === CSR_X || io.decodePrivCheck.csrOp === CSR_I || 
+    ((io.decodePrivCheck.csrOp === CSR_S ||  io.decodePrivCheck.csrOp === CSR_C) &&  io.decodePrivCheck.instRs === 0.U) ||
+    ((io.decodePrivCheck.csrOp === CSR_SI || io.decodePrivCheck.csrOp === CSR_CI) && io.decodePrivCheck.instImm === 0.U))
+  val decodeCSRExists = csrMapping.map(kv => io.decodePrivCheck.csrAddr === kv._1).reduce(_ | _).asBool()
+  val decodeReadOnlyCSR = io.decodePrivCheck.csrAddr(11, 10) === "b11".U
+  val decodeCSRFalsePriv = decodeAccessCSRPriv > privMode
+  // Legal stands for CSR exists and the priv is right
+  val decodeCSRAddrLegal = decodeCSRExists & !decodeCSRFalsePriv
+  val decodeWriteIllegalCSR = decodeCSRWen & (!decodeCSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.decodePrivCheck.csrAddr === CSRAddr.satp) |
+    decodeReadOnlyCSR)
+  val decodeReadIllegalCSR = decodeCSRRen & (!decodeCSRAddrLegal |
+    (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.decodePrivCheck.csrAddr === CSRAddr.satp))
+
+  io.decodePrivCheck.illegalInst := decodeWriteIllegalCSR | decodeReadIllegalCSR
+
 }
 
 object CSRFile extends App {
