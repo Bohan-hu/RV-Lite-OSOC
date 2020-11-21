@@ -34,7 +34,7 @@ class Top extends Module {
   ifuTop.io.pause := exu.io.pauseReq
   ifuTop.io.csr2mmu <> csrFile.io.csrMMU
   ifuTop.io.flush := false.B
-  
+
 
   // IFU <> DECODER
   decoder.io.instBundleIn := ifuTop.io.inst_out

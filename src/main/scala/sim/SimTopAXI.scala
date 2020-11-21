@@ -3,24 +3,25 @@
 package sim
 import core._
 import chisel3._
-import chisel3.stage.ChiselStage
+import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util.experimental.BoringUtils
 import bus.AXIMaster
 import bus.AXILiteMaster
+import firrtl.stage.RunFirrtlTransformAnnotation
 
-class SimTopAXI extends Module {
+class ysyx_hbh extends Module {
   val io = IO(new Bundle() {
     // val difftest = new DiffTestIO
     // val logCtrl = new LogCtrlIO
     // val difftestCtrl = new DiffTestCtrlIO
     val mem = new AXIMaster
     val mmio = new AXILiteMaster 
-    val meip = Input(Bool())
+    val interrupt = Input(Bool())
   })
   val top = Module(new Top)
   top.io.axiLiteMaster <> io.mmio
   top.io.axiMaster <> io.mem
-  top.io.meip := io.meip
+  top.io.meip := io.interrupt
   val difftest = WireInit(0.U.asTypeOf(new DiffTestIO))
   // dontTouch(io.logCtrl)
   // io.difftestCtrl.enable := true.B
@@ -43,7 +44,12 @@ class SimTopAXI extends Module {
 
 }
 
-object SimTopAXI extends App {
+object ysyx_hbh extends App {
   val stage = new ChiselStage
-  stage.emitVerilog(new SimTopAXI)
+//  stage.execute(args, Seq(
+//    ChiselGeneratorAnnotation(() => new ysyx_hbh),
+////    RunFirrtlTransformAnnotation(new AddModulePrefix()),
+////    ModulePrefixAnnotation("hbh_")
+//  ))
+  stage.emitVerilog(new ysyx_hbh)
 }
