@@ -176,6 +176,11 @@ class MEM extends Module {
       SZ_BU -> "b000".U
     )
   )
+  // Misaligned addr
+  val addrMisaligned =  (accessVAddr(0) =/= 0.U && (io.MemType === SZ_H || io.MemType === SZ_HU)) ||        // Half
+                        (accessVAddr(1,0) =/= 0.U && (io.MemType === SZ_W || io.MemType === SZ_WU)) ||      // Word
+                        (accessVAddr(2,0) =/= 0.U && (io.MemType === SZ_D))                                 // Double
+  
   io.mem2dmem.memSize := axiSize
   val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
   val dataFromMem = WireInit(io.mem2dmem.memRdata)
@@ -214,7 +219,7 @@ class MEM extends Module {
   val scResult         = isSC & !scWillSuccess
   val scSuccessReg     = RegInit(1.U(64.W))
   // When the instruction does not cause exception, is valid, and will happen, send the request to MMU
-  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) )
+  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) ) & ~addrMisaligned
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
   val rDataReg = Reg(UInt(64.W))
@@ -250,7 +255,13 @@ class MEM extends Module {
   switch(state) {
     is(sIDLE) {
       scSuccessReg := 1.U
-      when(isSC && scWillSuccess) {
+      when(addrMisaligned) {
+        io.exceInfoOut.valid := isStore | isLoad | isAMO
+        io.exceInfoOut.cause := Mux(isLoad, ExceptionNo.loadAddrMisaligned.U, ExceptionNo.storeAddrMisaligned.U)
+        io.exceInfoOut.tval := accessVAddr
+        io.exceInfoOut.epc := io.instPC
+      }
+      when(isSC && scWillSuccess) {     // TODO: Misaligned SC?
         reservationValid := false.B
         scSuccessReg := 0.U
       }
