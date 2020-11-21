@@ -232,6 +232,12 @@ class MEM extends Module {
   switch(state) {
     is(sIDLE) {
       scSuccessReg := 1.U
+      when(addrMisaligned) {
+        io.exceInfoOut.valid := isStore | isLoad | isAMO
+        io.exceInfoOut.cause := Mux(isLoad, ExceptionNo.loadAddrMisaligned.U, ExceptionNo.storeAddrMisaligned.U)
+        io.exceInfoOut.tval := accessVAddr
+        io.exceInfoOut.epc := io.instPC
+      }
       when(isSC && scWillSuccess) {
         reservationValid := false.B
         scSuccessReg := 0.U
