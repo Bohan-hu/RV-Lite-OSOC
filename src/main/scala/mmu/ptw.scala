@@ -152,7 +152,6 @@ class PTW(isDPTW: Boolean) extends Module {
           given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
           If not, stop and raise a page-fault exception corresponding to the original access type.
           */
-          // TODO: Handle the 80000000L in crossbars(IMPORTANT)
           switch(pteLevelReg) {
             is(1.U) { io.respPaddr := Cat(pteConverted.ppn2, io.reqVAddr(29,0))}
             is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0))}
@@ -164,32 +163,36 @@ class PTW(isDPTW: Boolean) extends Module {
             is(3.U) { io.tlbUpdate.is4K := true.B }
           }
           if (isDPTW) { // isDPTW, check the following conditions
-            // TODO: when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
-            when((pteConverted.R || (pteConverted.X && io.mxr))) {
+            when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
+            // when((pteConverted.R || (pteConverted.X && io.mxr))) {
               stateReg := sIDLE
               io.respValid := true.B
               io.tlbUpdate.valid := true.B
               pteLevelReg := 1.U
             }.otherwise {
+              io.respValid := false.B
               stateReg := sERROR
             }
             when(io.reqIsStore && !pteConverted.W) { // Is store, but not writable
+              io.respValid := false.B
               stateReg := sERROR
             }
             // TODO: Recover the condition
-            // when(!pteConverted.A ||
-            //   (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
-            //   // or if the memory access is a store and pte.d = 0
-            //   stateReg := sERROR
-            // }
+            when(!pteConverted.A ||
+              (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
+              // or if the memory access is a store and pte.d = 0
+              io.respValid := false.B
+              stateReg := sERROR
+            }
           } else {  // is IPTW, check the following conditions
             /*
             Attempting to fetch an instruction from a page that does not have execute permissions
             raises a fetch page-fault exception
              */
             // TODO: Recover the condition
-            // when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
-            when(!pteConverted.X) { // Instr, not eXecutable
+            when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
+            // when(!pteConverted.X) { // Instr, not eXecutable
+              io.respValid := false.B
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
