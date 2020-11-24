@@ -19,7 +19,7 @@ class NaiveBusM2S extends Bundle {
 */
 class AXIMaster extends Bundle {
 
-  val arid     = Output(UInt(1.W))
+  val arid     = Output(UInt(4.W))
   val araddr   = Output(UInt(32.W))
   val arlen    = Output(UInt(8.W))
   val arsize   = Output(UInt(3.W))
@@ -32,7 +32,7 @@ class AXIMaster extends Bundle {
   val arqos    = Output(UInt(4.W))
   val arready  = Input(Bool())
 
-  val rid      = Input(UInt(3.W))
+  val rid      = Input(UInt(1.W))
   val rdata    = Input(UInt(64.W))
   val rresp    = Input(UInt(2.W))
   val rlast    = Input(Bool())
@@ -40,7 +40,7 @@ class AXIMaster extends Bundle {
   val rvalid   = Input(Bool())
   val rready   = Output(Bool())
 
-  val awid     = Output(UInt(1.W))
+  val awid     = Output(UInt(4.W))
   val awaddr   = Output(UInt(32.W))
   val awlen    = Output(UInt(8.W))
   val awsize   = Output(UInt(3.W))
@@ -60,7 +60,7 @@ class AXIMaster extends Bundle {
   val wvalid   = Output(Bool())
   val wready   = Input(Bool())
 
-  val bid      = Input(UInt(1.W))
+  val bid      = Input(UInt(4.W))
   val bresp    = Input(UInt(2.W))
   val buser    = Input(Bool())
   val bvalid   = Input(Bool())
@@ -68,7 +68,7 @@ class AXIMaster extends Bundle {
 }
 class AXILiteMaster extends Bundle {
 
-  val araddr   = Output(UInt(64.W))
+  val araddr   = Output(UInt(32.W))
   val arprot   = Output(UInt(3.W))
   val arvalid  = Output(Bool())
   val arready  = Input(Bool())
@@ -78,7 +78,7 @@ class AXILiteMaster extends Bundle {
   val rvalid   = Input(Bool())
   val rready   = Output(Bool())
 
-  val awaddr   = Output(UInt(64.W))
+  val awaddr   = Output(UInt(32.W))
   val awprot   = Output(UInt(3.W))
   val awvalid  = Output(Bool())
   val awready  = Input(Bool())
