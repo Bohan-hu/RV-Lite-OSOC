@@ -188,7 +188,8 @@ class Decode extends Module {
       IMM_ZEXT -> extractImm(new CSRIInstruction),
       IMM_ZERO -> 0.U
     ))
-  io.decode2Exe.instValid := ((inst_valid | (io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U) ) & io.instBundleIn.instValid)
+  val unknownInst = ~inst_valid & io.instBundleIn.instValid & ~(io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U) // Not a pagefault, real unknown
+  io.decode2Exe.instValid := io.instBundleIn.instValid
   io.decode2Exe.BrType := br_Type
   io.decode2Exe.R1ren := rs1Ren
   io.decode2Exe.R2ren := rs2Ren
@@ -231,6 +232,10 @@ class Decode extends Module {
 
   when(!io.exceptionInfoIF.valid && io.instBundleIn.instValid) {
     exceptionInfo.tval := io.instBundleIn.inst
+    when(unknownInst) {
+      exceptionInfo.valid := true.B
+      exceptionInfo.cause := ExceptionNo.illegalInstr.U
+    }
     // TODO: Illegal instruction on xRET when x > privMode
     // Illegal Inst (CSR false priv) 
     when(io.decodePrivCheck.illegalInst) {
