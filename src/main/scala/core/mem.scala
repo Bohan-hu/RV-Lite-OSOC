@@ -178,6 +178,10 @@ class MEM extends Module {
     ).map( kw => { kw._1 -> signExt64(kw._2) }
   )
   )
+  // Misaligned addr
+  val addrMisaligned =  (accessVAddr(0) =/= 0.U && (io.MemType === SZ_H || io.MemType === SZ_HU)) ||        // Half
+                        (accessVAddr(1,0) =/= 0.U && (io.MemType === SZ_W || io.MemType === SZ_WU)) ||      // Word
+                        (accessVAddr(2,0) =/= 0.U && (io.MemType === SZ_D))                                 // Double
   // LR/SC Handler
 
   val reservationSet = Reg(UInt(64.W))
@@ -196,7 +200,7 @@ class MEM extends Module {
   val scResult         = isSC & !scWillSuccess
   val scSuccessReg     = RegInit(1.U(64.W))
   // When the instruction does not cause exception, is valid, and will happen, send the request to MMU
-  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) )
+  val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) ) & ~addrMisaligned
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
   val rDataReg = Reg(UInt(64.W))
