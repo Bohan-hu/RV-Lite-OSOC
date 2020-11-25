@@ -66,6 +66,7 @@ class PTW(isDPTW: Boolean) extends Module {
   val pteReg             = Reg(UInt(64.W))
   val pteConverted       = Wire(new PTE)
   pteConverted           := pteReg.asTypeOf(new PTE)
+  pteConverted.A         := true.B
   io.respValid           := false.B
   io.memReq.memRreq      := false.B
   io.pageFault           := false.B
@@ -101,9 +102,13 @@ class PTW(isDPTW: Boolean) extends Module {
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
         when( io.translation_ls_en && io.reqReady && io.tlbQuery.hit) {
-          stateReg := sIDLE
-          io.respValid := true.B
-          io.respPaddr := io.tlbQuery.paddr
+          // stateReg := sIDLE
+          // io.respValid := true.B
+          // io.respPaddr := io.tlbQuery.paddr
+          io.respValid := false.B
+          stateReg := sHANDLE_PTE_Entry
+          pteReg := io.tlbQuery.pte.asUInt()
+          pteLevelReg := io.tlbQuery.level
         }
       } else {
         when(!io.enableSv39) {
@@ -115,9 +120,13 @@ class PTW(isDPTW: Boolean) extends Module {
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
         when( io.enableSv39 && io.reqReady && io.tlbQuery.hit) {
-          stateReg := sIDLE
-          io.respValid := true.B
-          io.respPaddr := io.tlbQuery.paddr
+          // stateReg := sIDLE
+          // io.respValid := true.B
+          // io.respPaddr := io.tlbQuery.paddr
+          io.respValid := false.B
+          stateReg := sHANDLE_PTE_Entry
+          pteReg := io.tlbQuery.pte.asUInt()
+          pteLevelReg := io.tlbQuery.level
         }
       }
     }
@@ -167,7 +176,7 @@ class PTW(isDPTW: Boolean) extends Module {
             // when((pteConverted.R || (pteConverted.X && io.mxr))) {
               stateReg := sIDLE
               io.respValid := true.B
-              io.tlbUpdate.valid := true.B
+              io.tlbUpdate.valid := ~io.tlbQuery.hit
               pteLevelReg := 1.U
             }.otherwise {
               io.respValid := false.B
@@ -196,7 +205,7 @@ class PTW(isDPTW: Boolean) extends Module {
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
-              io.tlbUpdate.valid := true.B
+              io.tlbUpdate.valid := ~io.tlbQuery.hit
               stateReg := sIDLE
               pteLevelReg := 1.U
             }

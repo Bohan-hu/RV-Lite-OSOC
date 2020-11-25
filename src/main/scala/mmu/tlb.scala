@@ -15,6 +15,8 @@ class TLBQuery extends Bundle {
   val hit = Output(Bool())
   val vaddr = Input(UInt(64.W))
   val paddr = Output(UInt(64.W))
+  val pte = Output(new PTE)
+  val level = Output(UInt(2.W))
 }
 //
 class TLB extends Module{
@@ -51,20 +53,26 @@ class TLB extends Module{
     vpn0_hit := (vpn0In === tlbEntryTag(20,12))
     vpn1_hit := (vpn1In === tlbEntryTag(29,21))
     vpn2_hit := (vpn2In === tlbEntryTag(38,30))
+    io.tlbQuery.pte := tlbEntry.pte
+    io.tlbQuery.level := 1.U
     when(vpn2_hit && tlbEntry.valid) {
       when(tlbEntry.is1G) {
         // 1G Page
         io.tlbQuery.hit := true.B
         io.tlbQuery.paddr := Cat(tlbEntry.pte.ppn2, io.tlbQuery.vaddr(29,0))
+        io.tlbQuery.level := 1.U
       }.elsewhen(vpn1_hit) {
         when(tlbEntry.is2M) {
           // 2M Page
           io.tlbQuery.hit := true.B
           io.tlbQuery.paddr := Cat(tlbEntry.pte.ppn2, tlbEntry.pte.ppn1, io.tlbQuery.vaddr(20,0))
+        io.tlbQuery.level := 2.U
         }.elsewhen(vpn0_hit) {
           // 4K Page
           io.tlbQuery.hit := true.B
-          io.tlbQuery.paddr := Cat(tlbEntry.pte.ppn2, tlbEntry.pte.ppn1, tlbEntry.pte.ppn0, io.tlbQuery.vaddr(11,0))
+          io.tlbQuery.paddr := Cat(
+          tlbEntry.pte.ppn2, tlbEntry.pte.ppn1, tlbEntry.pte.ppn0, io.tlbQuery.vaddr(11,0))
+          io.tlbQuery.level := 3.U
         }
       }
     }
@@ -74,7 +82,7 @@ class TLB extends Module{
   }
 }
 
-object tlb extends App {
-  val stage = new ChiselStage
-  stage.emitVerilog(new TLB)
-}
+// object tlb extends App {
+//   val stage = new ChiselStage
+//   stage.emitVerilog(new TLB)
+// }

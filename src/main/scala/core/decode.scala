@@ -158,9 +158,9 @@ class Decode extends Module {
 
       FENCE_I -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, Y),
       // kill pipeline and refetch instructions since the pipeline will be holding stall instructions.
-      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N),
+      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, N),
       // we are already sequentially consistent, so no need to honor the fence instruction
-      SFENCE_VMA -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N)
+      SFENCE_VMA -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, N)
     )
   val decode_ops = ListLookup(io.instBundleIn.inst, dummy, decodeops)
   val (inst_valid: Bool) :: br_Type :: op1Sel :: op2Sel :: (rs1Ren: Bool) :: (rs2Ren: Bool) :: aluOp :: fuType :: (isWordOp: Bool) :: wbSel :: (wbEn: Bool) :: (memEn: Bool) :: memOp :: memMask :: csrOp :: (isFence: Bool) :: Nil = decode_ops
