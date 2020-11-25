@@ -46,7 +46,7 @@ class MMU (isDMMU: Boolean) extends Module {
   
   // ptw ctrl
   ptw.io.flush             := io.flush
-  if(!isDMMU) {
+  if(isDMMU) {
     ptw.io.reqIsStore      := io.isStore
   } else {
     ptw.io.reqIsStore      := false.B

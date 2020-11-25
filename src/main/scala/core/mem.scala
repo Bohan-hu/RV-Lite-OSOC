@@ -255,13 +255,13 @@ class MEM extends Module {
   switch(state) {
     is(sIDLE) {
       scSuccessReg := 1.U
-      when(addrMisaligned) {
-        io.exceInfoOut.valid := isStore | isLoad | isAMO
+      when(addrMisaligned & io.isMemOp & !io.exceInfoIn.valid) {
+        io.exceInfoOut.valid := true.B
         io.exceInfoOut.cause := Mux(isLoad, ExceptionNo.loadAddrMisaligned.U, ExceptionNo.storeAddrMisaligned.U)
         io.exceInfoOut.tval := accessVAddr
         io.exceInfoOut.epc := io.instPC
       }
-      when(isSC && scWillSuccess) {     // TODO: Misaligned SC?
+      when(isSC && scWillSuccess) {
         reservationValid := false.B
         scSuccessReg := 0.U
       }

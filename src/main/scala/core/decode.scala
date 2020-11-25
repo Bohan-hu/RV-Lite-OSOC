@@ -158,9 +158,9 @@ class Decode extends Module {
 
       FENCE_I -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, Y),
       // kill pipeline and refetch instructions since the pipeline will be holding stall instructions.
-      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N),
+      FENCE -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, N),
       // we are already sequentially consistent, so no need to honor the fence instruction
-      SFENCE_VMA -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, Y, MEM_NOP, SZ_X, CSR_X, N)
+      SFENCE_VMA -> List(Y, BR_N, OP1_X, OP2_X, N, N, ALU_X, FU_ALU, N, WB_X, N, N, MEM_NOP, SZ_X, CSR_X, N)
     )
   val decode_ops = ListLookup(io.instBundleIn.inst, dummy, decodeops)
   val (inst_valid: Bool) :: br_Type :: op1Sel :: op2Sel :: (rs1Ren: Bool) :: (rs2Ren: Bool) :: aluOp :: fuType :: (isWordOp: Bool) :: wbSel :: (wbEn: Bool) :: (memEn: Bool) :: memOp :: memMask :: csrOp :: (isFence: Bool) :: Nil = decode_ops
@@ -188,7 +188,8 @@ class Decode extends Module {
       IMM_ZEXT -> extractImm(new CSRIInstruction),
       IMM_ZERO -> 0.U
     ))
-  io.decode2Exe.instValid := ((inst_valid | (io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U) ) & io.instBundleIn.instValid)
+  val unknownInst = ~inst_valid & io.instBundleIn.instValid & ~(io.exceptionInfoIF.valid & io.exceptionInfoIF.cause === ExceptionNo.instrPageFault.U) // Not a pagefault, real unknown
+  io.decode2Exe.instValid := io.instBundleIn.instValid
   io.decode2Exe.BrType := br_Type
   io.decode2Exe.R1ren := rs1Ren
   io.decode2Exe.R2ren := rs2Ren
@@ -231,6 +232,10 @@ class Decode extends Module {
 
   when(!io.exceptionInfoIF.valid && io.instBundleIn.instValid) {
     exceptionInfo.tval := io.instBundleIn.inst
+    when(unknownInst) {
+      exceptionInfo.valid := true.B
+      exceptionInfo.cause := ExceptionNo.illegalInstr.U
+    }
     // TODO: Illegal instruction on xRET when x > privMode
     // Illegal Inst (CSR false priv) 
     when(io.decodePrivCheck.illegalInst) {

@@ -140,10 +140,25 @@ class IFU extends Module {
     npc := pc + 4.U
   }
 
-  io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
-  io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisPC)))
-  io.inst_out.inst := RegNext(Mux(io.pause, io.inst_out.inst, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisInst)))
-  io.exceInfoOut := RegNext(Mux(io.pause, io.exceInfoOut, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), thisExce)))
+  val flush = io.branchRedir.redir || io.exceptionRedir.redir
+  io.inst_out.instValid := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, 
+                                    Mux(io.pause, io.inst_out.instValid, thisInstValid)))
+  io.inst_out.inst_pc := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, 
+                                    Mux(io.pause, io.inst_out.inst_pc ,thisPC)))
+  io.inst_out.inst := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, 
+                                    Mux(io.pause, io.inst_out.inst, thisInst)))
+  io.exceInfoOut := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), 
+                                    Mux(io.pause, io.exceInfoOut, thisExce)))
+
+  // io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
+  // io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisPC)))
+  // io.inst_out.inst := RegNext(Mux(io.pause, io.inst_out.inst, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisInst)))
+  // io.exceInfoOut := RegNext(Mux(io.pause, io.exceInfoOut, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), thisExce)))
+  // io.inst_out.instValid := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid))
+  // io.inst_out.inst_pc := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisPC))
+  // io.inst_out.inst := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisInst))
+  // io.exceInfoOut := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), thisExce))
+
 }
 
 object IFU extends App {

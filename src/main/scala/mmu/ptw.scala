@@ -66,6 +66,7 @@ class PTW(isDPTW: Boolean) extends Module {
   val pteReg             = Reg(UInt(64.W))
   val pteConverted       = Wire(new PTE)
   pteConverted           := pteReg.asTypeOf(new PTE)
+  pteConverted.A         := true.B
   io.respValid           := false.B
   io.memReq.memRreq      := false.B
   io.pageFault           := false.B
@@ -102,9 +103,13 @@ class PTW(isDPTW: Boolean) extends Module {
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
         when( io.translation_ls_en && io.reqReady && io.tlbQuery.hit) {
-          stateReg := sIDLE
-          io.respValid := true.B
-          io.respPaddr := io.tlbQuery.paddr
+          // stateReg := sIDLE
+          // io.respValid := true.B
+          // io.respPaddr := io.tlbQuery.paddr
+          io.respValid := false.B
+          stateReg := sHANDLE_PTE_Entry
+          pteReg := io.tlbQuery.pte.asUInt()
+          pteLevelReg := io.tlbQuery.level
         }
       } else {
         when(!io.enableSv39) {
@@ -116,9 +121,13 @@ class PTW(isDPTW: Boolean) extends Module {
           ptrReg := Cat(io.satp_PPN, io.reqVAddr(38, 30), 0.U(3.W)) // Root Page Table PPN
         }
         when( io.enableSv39 && io.reqReady && io.tlbQuery.hit) {
-          stateReg := sIDLE
-          io.respValid := true.B
-          io.respPaddr := io.tlbQuery.paddr
+          // stateReg := sIDLE
+          // io.respValid := true.B
+          // io.respPaddr := io.tlbQuery.paddr
+          io.respValid := false.B
+          stateReg := sHANDLE_PTE_Entry
+          pteReg := io.tlbQuery.pte.asUInt()
+          pteLevelReg := io.tlbQuery.level
         }
       }
     }
@@ -153,7 +162,6 @@ class PTW(isDPTW: Boolean) extends Module {
           given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
           If not, stop and raise a page-fault exception corresponding to the original access type.
           */
-          // TODO: Handle the 80000000L in crossbars(IMPORTANT)
           switch(pteLevelReg) {
             is(1.U) { io.respPaddr := Cat(pteConverted.ppn2, io.reqVAddr(29,0))}
             is(2.U) { io.respPaddr := Cat(pteConverted.ppn2, pteConverted.ppn1, io.reqVAddr(20,0))}
@@ -165,48 +173,51 @@ class PTW(isDPTW: Boolean) extends Module {
             is(3.U) { io.tlbUpdate.is4K := true.B }
           }
           if (isDPTW) { // isDPTW, check the following conditions
-            // TODO: when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
-            when((pteConverted.R || (pteConverted.X && io.mxr))) {
+            when(pteConverted.A && (pteConverted.R || (pteConverted.X && io.mxr))) {
+            // when((pteConverted.R || (pteConverted.X && io.mxr))) {
               stateReg := sIDLE
               io.respValid := true.B
-              io.tlbUpdate.valid := true.B
+              io.tlbUpdate.valid := ~io.tlbQuery.hit
               pteLevelReg := 1.U
             }.otherwise {
+              io.respValid := false.B
               stateReg := sERROR
             }
             when(io.reqIsStore && !pteConverted.W) { // Is store, but not writable
+              io.respValid := false.B
               stateReg := sERROR
             }
             // TODO: Recover the condition
-            // when(!pteConverted.A ||
-            //   (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
-            //   // or if the memory access is a store and pte.d = 0
-            //   stateReg := sERROR
-            // }
+            when(!pteConverted.A ||
+              (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
+              // or if the memory access is a store and pte.d = 0
+              io.respValid := false.B
+              stateReg := sERROR
+            }
           } else {  // is IPTW, check the following conditions
             /*
             Attempting to fetch an instruction from a page that does not have execute permissions
             raises a fetch page-fault exception
              */
             // TODO: Recover the condition
-            // when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
-            when(!pteConverted.X) { // Instr, not eXecutable
+            when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
+            // when(!pteConverted.X) { // Instr, not eXecutable
+              io.respValid := false.B
               stateReg := sERROR
             }.otherwise {
               io.respValid := true.B
-              io.tlbUpdate.valid := true.B
+              io.tlbUpdate.valid := ~io.tlbQuery.hit
               stateReg := sIDLE
               pteLevelReg := 1.U
             }
           }
           // 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
           // exception.
-          // TODO: Fix it
-          // when((pteLevelReg === 1.U && Cat(pteConverted.ppn2, pteConverted.ppn1) =/= 0.U) ||
-          //   (pteLevelReg === 2.U && pteConverted.ppn1 =/= 0.U)) {
-          //   io.respValid := false.B
-          //   stateReg := sERROR
-          // }
+          when((pteLevelReg === 1.U && Cat(pteConverted.ppn1, pteConverted.ppn0) =/= 0.U) ||
+            (pteLevelReg === 2.U && pteConverted.ppn0 =/= 0.U)) {
+            io.respValid := false.B
+            stateReg := sERROR
+          }
         }.otherwise { // the PTE is a pointer to the next level of the page table
           stateReg := sWAIT_PTE_Entry
           when(pteLevelReg === 1.U) {

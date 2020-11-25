@@ -112,7 +112,7 @@ class EXU extends Module {
   io.toclint <> mem.io.toclint
   // io.mem2dmem <> mem.io.mem2dmem
   dmmu.io.mem2mmu <> mem.io.mem2mmu
-  dmmu.io.isStore := mem.io.MemType === MEM_AMO || mem.io.MemType === MEM_WRITE
+  dmmu.io.isStore := mem.io.MemOp === MEM_AMO || mem.io.MemOp === MEM_WRITE
   dmmu.io.flush := io.flush
   dmmu.io.csr2mmu <> io.csr2mmu
 
