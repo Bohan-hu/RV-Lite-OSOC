@@ -503,7 +503,7 @@ class CSRFile extends Module {
     CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
     CSRAddr.sie -> sieMask,
-    CSRAddr.sip -> sipMask,
+    CSRAddr.sip -> sipMask
     // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
     // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
@@ -703,7 +703,7 @@ class CSRFile extends Module {
   val decodeReadIllegalCSR = decodeCSRRen & (!decodeCSRAddrLegal |
     (mstatus.asTypeOf(new mstatus).TVM && privMode === S && io.decodePrivCheck.csrAddr === CSRAddr.satp))
 
-  io.decodePrivCheck.illegalInst := decodeWriteIllegalCSR | decodeReadIllegalCSR
+  io.decodePrivCheck.illegalInst := (decodeWriteIllegalCSR | decodeReadIllegalCSR)
 
 }
 
