@@ -498,7 +498,7 @@ class CSRFile extends Module {
     CSRAddr.medeleg -> 0xbbff.U,
     CSRAddr.sstatus -> sstatus_write_mask.asUInt(),
     CSRAddr.sie -> sieMask,
-    CSRAddr.sip -> sipMask,
+    CSRAddr.sip -> sipMask
     // CSRAddr.stvec -> (~(1.U(64.W) << 1)).asUInt(),
     // CSRAddr.sepc -> (~1.U(64.W)).asUInt(),
 
