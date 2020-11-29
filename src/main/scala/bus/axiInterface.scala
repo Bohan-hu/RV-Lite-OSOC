@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.stage.ChiselStage
 import _root_.core.MMIO
+import chisel3.util.experimental.BoringUtils
 /*
 class NaiveBusM2S extends Bundle {
   val memRreq   = Output(Bool())
@@ -103,6 +104,14 @@ class AXIBridge extends Module {
   val io = IO(new BridgeIO)
   val sIDLE :: sSEND_W_ADDR :: sSEND_R_ADDR :: sRECEIVE_DATA :: sSEND_DATA  :: sWAIT_WRESP :: Nil = Enum(6)
   val addr =  Mux(io.lsuPort.memRreq | io.lsuPort.memWen, io.lsuPort.memAddr, io.ifuPort.memAddr)
+  BoringUtils.addSource(io.ifuPort.memAddr, "instReqAddr")
+  BoringUtils.addSource(io.ifuPort.memRreq, "instReq")
+  BoringUtils.addSource(io.ifuPort.memRvalid, "instResp")
+  BoringUtils.addSource(io.lsuPort.memAddr, "memReqAddr")
+  BoringUtils.addSource(io.lsuPort.memRvalid,"memRresp")
+  BoringUtils.addSource(io.lsuPort.memRreq,"memRreq")
+  BoringUtils.addSource(io.lsuPort.memWrDone,"memWrDone")
+  
   // 8 Bytes in one transfer(Two instructions)
   val instReqArSz = WireInit("b011".U)
   dontTouch(io.axiMaster.awuser)

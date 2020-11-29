@@ -74,8 +74,9 @@ object MMIO {
   //   (0x3c000000L, 0x04000000L)  // PLIC
   // )
   val MMIORange = List(
-    (0x40000000L, 0x40000000L)
-  )
+  //  (0x40000000L, 0x40000000L)
+      (0x80000000L, 0x00001000L) 
+ )
 
   def inMMIORange(Addr: UInt) = {
     MMIORange map ({

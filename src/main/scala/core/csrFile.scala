@@ -459,7 +459,7 @@ class CSRFile extends Module {
     CSRAddr.mtval -> mtval,
     CSRAddr.mip -> mip,
     //CSRAddr.mtinst      ->   mtinst     ,
-    CSRAddr.mtval -> mtval,
+//    CSRAddr.mtval -> mtval,
     // Supervisor
     CSRAddr.sstatus -> mstatus, // To be handled soon
     CSRAddr.sie -> mie, // To be handled soon
