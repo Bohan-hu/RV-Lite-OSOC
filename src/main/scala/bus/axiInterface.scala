@@ -1,7 +1,9 @@
 package bus
+import core._
 import chisel3._
 import chisel3.util._
 import chisel3.stage.ChiselStage
+
 class CPUInstReq extends Bundle {
   val req = Bool()
   val addr = UInt(64.W)
@@ -77,12 +79,13 @@ class BridgeIO extends Bundle {
   val instResp = Output(new CPUInstResp)
   val dataReq = Input(new CPUDataReq)
   val dataResp = Output(new CPUDataResp)
+  val toClint = Flipped(new MEMCLINT)
   val axiMaster = new AXIMaster
 }
 
 class AXIBridge extends Module {
   val io = IO(new BridgeIO)
-  val sIDLE :: sSEND_RADDR_IREQ :: sWAIT_RDATA_IREQ :: sSEND_RADDR_DREQ :: sWAIT_RDATA_DREQ  :: sSEND_WADDR_DREQ :: sSEND_WDATA_DREQ :: sWAIT_WRESP_DREQ :: Nil = Enum(8)
+  val sIDLE :: sSEND_RADDR_IREQ :: sWAIT_RDATA_IREQ :: sSEND_RADDR_DREQ :: sWAIT_RDATA_DREQ  :: sSEND_WADDR_DREQ :: sSEND_WDATA_DREQ :: sWAIT_WRESP_DREQ :: sREAD_CLINT :: sWRITE_CLINT :: Nil = Enum(10)
   io.axiMaster.arvalid := io.instReq.req | io.dataReq.req
   io.axiMaster.arid := Mux(io.dataReq.req, 1.U, 0.U) // Data requst has higher priority than inst request
   io.axiMaster.araddr := Mux(io.dataReq.req, io.dataReq.addr, io.instReq.addr)
@@ -100,6 +103,7 @@ class AXIBridge extends Module {
   io.axiMaster.awprot := 0.U
   io.axiMaster.wid := 0.U
 
+  val isClint = io.dataReq.addr >= 0x38000000L.U && io.dataReq.addr < 0x40000000L.U 
   // 8 Bytes in one transfer(Two instructions)
   val instReqArSz = WireInit("b011".U)
   // Data transfer should depend on the Mem Op
@@ -107,18 +111,24 @@ class AXIBridge extends Module {
   // State Transfer Logic
   io.instResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_IREQ
   io.instResp.inst := Mux(io.instReq.addr(2), io.axiMaster.rdata(63, 32), io.axiMaster.rdata(31, 0))
-  io.dataResp.valid := io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_DREQ
-  io.dataResp.rdata := io.axiMaster.rdata
-  io.dataResp.write_done := io.axiMaster.bvalid && state === sWAIT_WRESP_DREQ
+  io.dataResp.valid := ( io.axiMaster.rvalid && io.axiMaster.rlast && state === sWAIT_RDATA_DREQ ) | state === sREAD_CLINT
+  io.dataResp.rdata := Mux(isClint, io.toClint.rdata, io.axiMaster.rdata)
+  io.dataResp.write_done := (io.axiMaster.bvalid && state === sWAIT_WRESP_DREQ) | state === sWRITE_CLINT
   switch(state) {
     is(sIDLE) {
       when(io.dataReq.req && io.dataReq.isWrite) {
-        state := sSEND_WADDR_DREQ
+        state := Mux(isClint, sWRITE_CLINT, sSEND_WADDR_DREQ)
       }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite) {
-        state := sSEND_RADDR_DREQ
+        state := Mux(isClint, sREAD_CLINT, sSEND_RADDR_DREQ)
       }.elsewhen(io.instReq.req) {
         state := sSEND_RADDR_IREQ
       }
+    }
+    is(sWRITE_CLINT) {
+      state := sIDLE
+    }
+    is(sREAD_CLINT) {
+      state := sIDLE
     }
     is(sSEND_RADDR_IREQ) {
       when(io.axiMaster.arready) {
@@ -173,11 +183,11 @@ class AXIBridge extends Module {
 
     switch(state) {
     is(sIDLE) {
-      when(io.dataReq.req && io.dataReq.isWrite) {
+      when(io.dataReq.req && io.dataReq.isWrite && ~isClint) {
         io.axiMaster.awaddr := io.dataReq.addr
         io.axiMaster.awsize := io.dataReq.size
         io.axiMaster.awvalid := true.B
-      }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite) {
+      }.elsewhen(io.dataReq.req && ~io.dataReq.isWrite && ~isClint) {
         io.axiMaster.araddr := io.dataReq.addr
         io.axiMaster.arvalid := true.B
         io.axiMaster.arsize := io.dataReq.size

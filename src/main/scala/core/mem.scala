@@ -143,10 +143,10 @@ class MEM extends Module {
   val accessVAddr = io.baseAddr + io.imm
 
   // TODO:
-  val readClint = io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U
+  val readClint = accessVAddr >= 0x38000000L.U && accessVAddr <= 0x00010000L.U + 0x38000000L.U
   io.exceInfoOut := io.exceInfoIn
   io.toclint.data := io.R2Val
-  io.toclint.addr := io.mem2dmem.memAddr
+  io.toclint.addr := accessVAddr
   // TODO Ends
   val dataSize = MuxLookup(io.MemType, 8.U,
     Array(
@@ -159,9 +159,12 @@ class MEM extends Module {
       SZ_BU -> 1.U
     )
   )
+
+  val dataSizeReg = Reg(UInt(4.W))
+  dataSizeReg := dataSize
   val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
   val dataFromMem = WireInit(io.mem2dmem.memRdata)
-  val memRdataRaw = MuxLookup(dataSize, dataFromMem, // Including Word Select
+  val memRdataRaw = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -169,7 +172,7 @@ class MEM extends Module {
       8.U -> dataFromMem
     )
   )
-  val memRdataRawExt = MuxLookup(dataSize, dataFromMem, // Including Word Select
+  val memRdataRawExt = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -204,8 +207,8 @@ class MEM extends Module {
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
   val rDataReg = Reg(UInt(64.W))
-  val amoSrc1 = Mux(dataSize === 4.U, io.R2Val(31,0), io.R2Val)
-  val amoSrc2 = Mux(dataSize === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
+  val amoSrc1 = Mux(dataSizeReg === 4.U, io.R2Val(31,0), io.R2Val)
+  val amoSrc2 = Mux(dataSizeReg === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
   val amoWData = MuxLookup(io.fuOp, amoSrc2, 
     Array(
       LSU_ASWAP -> amoSrc1,
@@ -220,8 +223,8 @@ class MEM extends Module {
     )
   )
   io.mem2dmem.memAddr := translatedPAddr
-  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
-  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, accessVAddr))
+  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSizeReg, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
+  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSizeReg, accessVAddr))
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
@@ -231,11 +234,16 @@ class MEM extends Module {
   }.elsewhen(isSC & scSuccessReg === 1.U) {
     io.memResult := 1.U
   }
+  when(readClint) {
+    io.memResult := io.toclint.rdata
+  }
   io.pauseReq := false.B
   io.toclint.wen := io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE && state === sWAIT_WR // TODO: Notice: It's an ugly patch!!!!
+  val MemTypeReg = RegInit(SZ_B)
   switch(state) {
     is(sIDLE) {
       scSuccessReg := 1.U
+      MemTypeReg := io.MemType   // Fix the timing problem
       when(addrMisaligned & io.isMemOp & !io.exceInfoIn.valid) {
         io.exceInfoOut.valid := true.B
         io.exceInfoOut.cause := Mux(isLoad, ExceptionNo.loadAddrMisaligned.U, ExceptionNo.storeAddrMisaligned.U)
@@ -312,7 +320,7 @@ class MEM extends Module {
   }
   val isUART = 0x40600000L.U <= io.mem2dmem.memAddr & (0x40600000L+10L).U >= io.mem2dmem.memAddr
   when( isStore && isUART ) {
-    printf("%c", io.R2Val(7,0))
+   printf("%c", io.R2Val(7,0))
   }
 
   // MMIO Flag
