@@ -231,6 +231,9 @@ class MEM extends Module {
   }.elsewhen(isSC & scSuccessReg === 1.U) {
     io.memResult := 1.U
   }
+  when(readClint) {
+    io.memResult := io.toclint.rdata
+  }
   io.pauseReq := false.B
   io.toclint.wen := io.mem2dmem.memAddr >= 0x38000000L.U && io.mem2dmem.memAddr <= 0x00010000L.U + 0x38000000L.U && io.isMemOp && io.MemOp === MEM_WRITE && state === sWAIT_WR // TODO: Notice: It's an ugly patch!!!!
   switch(state) {
@@ -321,7 +324,7 @@ class MEM extends Module {
     // printf("Writing to &SATP: %x\n", io.R2Val)
   }
   // LSU 
-  // IDLE -> ReqPADDR -> OP -> IDLE
+    // IDLE -> ReqPADDR -> OP -> IDLE
   // If is SC and SC will fail, write back the failing code 
   // IDLE -> read_req -> transfer to WAIT_RD 
   // WAIT_RD -> rvalid -> transfer to IDLE  / isAMO -> transfer to WAIT_WR
