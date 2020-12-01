@@ -94,10 +94,10 @@ object DataTypesUtils {
   def ByteMaskGen(dataSize: UInt, Addr: UInt) = {
     MuxLookup(dataSize, 8.U,
       Array(
-        1.U -> UIntToOH(Addr(2, 0)),
-        2.U -> Reverse(UIntToOH(Addr(2, 1))).asBools().map(Fill(2, _)).reduce(Cat(_, _)),
-        4.U -> Reverse(UIntToOH(Addr(2))).asBools().map(Fill(4, _)).reduce(Cat(_, _)),
-        8.U -> Fill(8, 1.U)
+        1.U -> ("b1".U << Addr(2, 0)),
+        2.U -> ("b11".U << Addr(2,0)),
+        4.U -> ("b1111".U << Addr(2,0)),
+        8.U -> "b11111111".U
       )
     )
   }
@@ -237,7 +237,7 @@ class MEM extends Module {
   )
   io.mem2dmem.memAddr := translatedPAddr
   io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSizeReg, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
-  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSizeReg, accessVAddr))
+  io.mem2dmem.memWmask := DataTypesUtils.ByteMaskGen(dataSizeReg, accessVAddr)
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)

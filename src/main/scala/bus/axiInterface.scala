@@ -231,14 +231,11 @@ class AXIBridge extends Module {
     is(sSEND_W_ADDR) {
       when(isMMIOReg) {
         io.axiLiteMaster.awvalid := true.B
-        when(io.axiLiteMaster.awready) {
-          state := sSEND_DATA
-        } 
-      }.otherwise{
+      }.otherwise {
         io.axiMaster.awvalid := true.B
-        when(io.axiMaster.awready) {
-          state := sSEND_DATA
-        }
+      }
+      when( (isMMIOReg & io.axiLiteMaster.awready) | (~isMMIOReg & io.axiMaster.awready) ) {
+        state := sSEND_DATA
       }
     }
     is(sSEND_DATA) {
