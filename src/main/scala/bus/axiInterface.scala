@@ -98,11 +98,12 @@ class BridgeIO extends Bundle {
   val lsuPort = Flipped(new NaiveBusM2S)
   val axiMaster = new AXIMaster
   val axiLiteMaster = new AXILiteMaster
+  val toClint = Flipped(new MEMCLINT)
 }
 
 class AXIBridge extends Module {
   val io = IO(new BridgeIO)
-  val sIDLE :: sSEND_W_ADDR :: sSEND_R_ADDR :: sRECEIVE_DATA :: sSEND_DATA  :: sWAIT_WRESP :: Nil = Enum(6)
+  val sIDLE :: sSEND_W_ADDR :: sSEND_R_ADDR :: sRECEIVE_DATA :: sSEND_DATA  :: sWAIT_WRESP :: sREAD_CLINT :: sWRITE_CLINT :: Nil = Enum(8)
   val addr =  Mux(io.lsuPort.memRreq | io.lsuPort.memWen, io.lsuPort.memAddr, io.ifuPort.memAddr)
   BoringUtils.addSource(io.ifuPort.memAddr, "instReqAddr")
   BoringUtils.addSource(io.ifuPort.memRreq, "instReq")
@@ -111,7 +112,7 @@ class AXIBridge extends Module {
   BoringUtils.addSource(io.lsuPort.memRvalid,"memRresp")
   BoringUtils.addSource(io.lsuPort.memRreq,"memRreq")
   BoringUtils.addSource(io.lsuPort.memWrDone,"memWrDone")
-  
+  val isClint = io.lsuPort.memAddr >= 0x38000000L.U && io.lsuPort.memAddr < 0x40000000L.U
   // 8 Bytes in one transfer(Two instructions)
   val instReqArSz = WireInit("b011".U)
   dontTouch(io.axiMaster.awuser)
@@ -181,17 +182,21 @@ class AXIBridge extends Module {
   io.ifuPort.memRdata := Mux(io.ifuPort.memAddr(2), rData(63, 32), rData(31, 0))
   io.ifuPort.memWrDone := false.B
   io.lsuPort.memRvalid := rValid && idReg === 1.U 
-  io.lsuPort.memRdata := rData 
+  io.lsuPort.memRdata := rData
   io.lsuPort.memWrDone := bValid && idReg === 1.U
+  io.toClint.addr := io.lsuPort.memAddr
+  io.toClint.data := io.lsuPort.memWdata
+  io.toClint.wen := false.B
+
   switch(state) {
     is(sIDLE) {
       when(io.lsuPort.memWen) {
-        state := sSEND_W_ADDR
+        state := Mux(isClint, sWRITE_CLINT, sSEND_W_ADDR)
         addrReg := io.lsuPort.memAddr
         idReg := io.axiMaster.awid
         isMMIOReg := isMMIO
       }.elsewhen(io.ifuPort.memRreq | io.lsuPort.memRreq) {
-        state := sSEND_R_ADDR
+        state := Mux(isClint, sREAD_CLINT, sSEND_R_ADDR)
         idReg := io.axiMaster.arid
         addrReg := addr
         isMMIOReg := isMMIO
@@ -254,6 +259,16 @@ class AXIBridge extends Module {
       when( (io.axiMaster.bvalid && !isMMIOReg) | (io.axiLiteMaster.bvalid && isMMIOReg) ) {
         state := sIDLE
       }
+    }
+    is(sWRITE_CLINT) {
+      state := sIDLE
+      io.toClint.wen := true.B
+      io.lsuPort.memWrDone := true.B
+    }
+    is(sREAD_CLINT) {
+      state := sIDLE
+      io.lsuPort.memRdata := io.toClint.rdata
+      io.lsuPort.memRvalid := true.B
     }
   }
   io.axiMaster.awuser := 0.U

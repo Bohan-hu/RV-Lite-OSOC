@@ -48,7 +48,6 @@ class EXUIO extends Bundle {
   val commit2Exe = Input(new commit2Exe)
   val instBundleOut = Output(new InstBundle)
   val mem2dmem = new NaiveBusM2S
-  val toclint  = Flipped(new MEMCLINT)
   val csr2mmu = Flipped(new CSRMMU)
   val flush = Input(Bool())
 }
@@ -109,7 +108,6 @@ class EXU extends Module {
   // Can be exceptions
   val mem = Module(new MEM)
   val dmmu = Module(new MMU(isDMMU = true))
-  io.toclint <> mem.io.toclint
   // io.mem2dmem <> mem.io.mem2dmem
   dmmu.io.mem2mmu <> mem.io.mem2mmu
   dmmu.io.isStore := mem.io.MemOp === MEM_AMO || mem.io.MemOp === MEM_WRITE

@@ -70,9 +70,9 @@ class Top extends Module {
 
   // Consts
   // TODO: TEST
-  val clint_tmp = Module(new CLINT)
-  csrFile.io.clintIn := clint_tmp.io.tocsr
-  clint_tmp.io.memport <> exu.io.toclint
+  val clint = Module(new CLINT)
+  csrFile.io.clintIn := clint.io.tocsr
+  clint.io.memport <> axiBridge.io.toClint
 
 }
 
