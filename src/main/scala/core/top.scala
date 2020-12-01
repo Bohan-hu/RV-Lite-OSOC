@@ -58,7 +58,7 @@ class Top extends Module {
   exu.io.flush := csrFile.io.ifRedir.redir
   exu.io.csr2mmu <> csrFile.io.csrMMU
   exu.io.commit2Exe := wb.io.commit2Exe
-
+  exu.io.intCtrl <> csrFile.io.intCtrl
   // MEM <> WB / MEM <> dmem
   wb.io.instBundleIn := exu.io.instBundleOut
   wb.io.exe2Commit := exu.io.exe2Commit

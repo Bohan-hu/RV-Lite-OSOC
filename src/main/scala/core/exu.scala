@@ -51,6 +51,7 @@ class EXUIO extends Bundle {
   val toclint  = Flipped(new MEMCLINT)
   val csr2mmu = Flipped(new CSRMMU)
   val flush = Input(Bool())
+  val intCtrl = Input(new INTCtrl)
 }
 
 class EXU extends Module {
@@ -143,7 +144,6 @@ class EXU extends Module {
   io.pauseReq := divu.io.divBusy || mulu.io.mulBusy || mem.io.pauseReq || op1Hazard || op2Hazard
 
   // To next stage
-  io.exe2Commit.exceInfo := RegNext(mem.io.exceInfoOut)
   io.exe2Commit.arithResult := RegNext(Mux(io.decode2Exe.FUType === FU_ALU, alu.io.out,
     Mux(io.decode2Exe.FUType === FU_MUL, mulu.io.wbResult, divu.io.wbResult)))
   io.exe2Commit.memResult := RegNext(mem.io.memResult)
@@ -156,9 +156,65 @@ class EXU extends Module {
 
   io.instBundleOut := RegNext(io.instBundleIn)
   io.instBundleOut.instValid := RegNext(Mux(io.flush, false.B, !io.pauseReq & io.instBundleIn.instValid))
+  val M = "b11".U
+  val S = "b01".U
+  val U = "b00".U
   //   io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
-
+  val exceptionInfo = WireInit(mem.io.exceInfoOut)
+  // Handle Interrupts Here
+  // If the instruction did not throw any exception in IF, we can attach the interrupt on this instruction
+  // the interrupt is order by priority, highest last
+  // We need a cause int signal to show whether the corresponding int is enabled
+  def MipAndMie(no: Int) = io.intCtrl.mip(no) && io.intCtrl.mie(no)
+  def makeInt(no: Int) = (no.U | 1.U << 63)
+  val causeInt = Wire(Bool())
+  causeInt := false.B
+  val sIntEnable = (io.intCtrl.privMode === S && io.intCtrl.sie || io.intCtrl.privMode === M)
+  when(MipAndMie(IntNo.STI) & io.intCtrl.sie & sIntEnable) {
+    exceptionInfo.cause := makeInt(IntNo.STI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.SSI) & io.intCtrl.sie & sIntEnable) {
+    exceptionInfo.cause := makeInt(IntNo.SSI)
+    causeInt := true.B
+  }
+  /*
+  the platform-level interrupt controller may generate supervisor-level external interrupts.
+  Supervisor-level external interrupts are made pending based on the
+  logical-OR of the software- writable SEIP bit and the signal from the external interrupt controller
+    */
+  when((io.intCtrl.mip(IntNo.SEI)) && io.intCtrl.mie(IntNo.SEI)) {
+    exceptionInfo.cause := makeInt(IntNo.SEI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MTI)) {
+    exceptionInfo.cause := makeInt(IntNo.MTI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MSI)) {
+    exceptionInfo.cause := makeInt(IntNo.MSI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MEI)) {
+    exceptionInfo.cause := makeInt(IntNo.MEI)
+    causeInt := true.B
+  }
+  // Until here, the value of exceptionInfo.cause has been the cause with the highest priority
+  // If we are in M mode, the S INT is disabled (unless is delegated)
+  // If we are in S mode,
+  // If M mode interrupts are disabled and we are in S mode,
+  when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt & io.instBundleIn.instValid) { // If is interrupt, we need to consider whether the interrupt can be taken
+    when(io.intCtrl.mideleg(exceptionInfo.cause(5, 0))){
+      when((io.intCtrl.sie && io.intCtrl.privMode === S) || io.intCtrl.privMode === U) { // If is delegated to S mode
+        exceptionInfo.valid := true.B
+      }
+    }.otherwise {
+      exceptionInfo.valid := true.B
+    }
+  }
+  io.exe2Commit.exceInfo := RegNext(exceptionInfo)
 }
+
 object EXU extends App {
   chisel3.Driver.execute(args, () => { new EXU })
 }

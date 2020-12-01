@@ -225,11 +225,6 @@ class Decode extends Module {
   val U = "b00".U
   // Exception info
   val exceptionInfo = WireInit(io.exceptionInfoIF)
-
-  def MipAndMie(no: Int) = io.intCtrl.mip(no) && io.intCtrl.mie(no)
-
-  def makeInt(no: Int) = (no.U | 1.U << 63)
-
   when(!io.exceptionInfoIF.valid && io.instBundleIn.instValid) {
     exceptionInfo.tval := io.instBundleIn.inst
     when(unknownInst) {
@@ -260,59 +255,11 @@ class Decode extends Module {
       exceptionInfo.valid := true.B
       exceptionInfo.cause := ExceptionNo.breakPoint.U
     }
-
-    // ================= Handle ECALL and EBREAK ends ===================
-    // If the instruction did not throw any exception in IF, we can attach the interrupt on this instruction
-    // the interrupt is order by priority, highest last
-    // We need a cause int signal to show whether the corresponding int is enabled
-    val causeInt = Wire(Bool())
-    causeInt := false.B
-    val sIntEnable = (io.intCtrl.privMode === S && io.intCtrl.sie || io.intCtrl.privMode === M)
-    when(MipAndMie(IntNo.STI) & io.intCtrl.sie & sIntEnable) {
-      exceptionInfo.cause := makeInt(IntNo.STI)
-      causeInt := true.B
-    }
-    when(MipAndMie(IntNo.SSI) & io.intCtrl.sie & sIntEnable) {
-      exceptionInfo.cause := makeInt(IntNo.SSI)
-      causeInt := true.B
-    }
-    /*
-    the platform-level interrupt controller may generate supervisor-level external interrupts.
-    Supervisor-level external interrupts are made pending based on the
-    logical-OR of the software- writable SEIP bit and the signal from the external interrupt controller
-     */
-    when((io.intCtrl.mip(IntNo.SEI) | io.PLIC_SEI) && io.intCtrl.mie(IntNo.SEI)) {
-      exceptionInfo.cause := makeInt(IntNo.SEI)
-      causeInt := true.B
-    }
-    when(MipAndMie(IntNo.MTI)) {
-      exceptionInfo.cause := makeInt(IntNo.MTI)
-      causeInt := true.B
-    }
-    when(MipAndMie(IntNo.MSI)) {
-      exceptionInfo.cause := makeInt(IntNo.MSI)
-      causeInt := true.B
-    }
-    when(MipAndMie(IntNo.MEI)) {
-      exceptionInfo.cause := makeInt(IntNo.MEI)
-      causeInt := true.B
-    }
-    // Until here, the value of exceptionInfo.cause has been the cause with the highest priority
-    // If we are in M mode, the S INT is disabled (unless is delegated)
-    // If we are in S mode,
-    // If M mode interrupts are disabled and we are in S mode,
-    when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt & io.instBundleIn.instValid) { // If is interrupt, we need to consider whether the interrupt can be taken
-      when(io.intCtrl.mideleg(exceptionInfo.cause(5, 0))){
-        when((io.intCtrl.sie && io.intCtrl.privMode === S) || io.intCtrl.privMode === U) { // If is delegated to S mode
-          exceptionInfo.valid := true.B
-        }
-      }.otherwise {
-        exceptionInfo.valid := true.B
-      }
-    }
   }
-  io.decode2Exe.exceInfo := exceptionInfo
+    // ================= Handle ECALL and EBREAK ends ===================
 
+  io.decode2Exe.exceInfo := exceptionInfo
+  
 }
 
 
