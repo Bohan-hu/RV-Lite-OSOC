@@ -159,9 +159,11 @@ class MEM extends Module {
       SZ_BU -> 1.U
     )
   )
+  val dataSizeReg = RegInit(dataSize)
+  dataSizeReg := dataSize
   val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
   val dataFromMem = WireInit(io.mem2dmem.memRdata)
-  val memRdataRaw = MuxLookup(dataSize, dataFromMem, // Including Word Select
+  val memRdataRaw = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -169,7 +171,7 @@ class MEM extends Module {
       8.U -> dataFromMem
     )
   )
-  val memRdataRawExt = MuxLookup(dataSize, dataFromMem, // Including Word Select
+  val memRdataRawExt = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -204,8 +206,8 @@ class MEM extends Module {
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
   val rDataReg = Reg(UInt(64.W))
-  val amoSrc1 = Mux(dataSize === 4.U, io.R2Val(31,0), io.R2Val)
-  val amoSrc2 = Mux(dataSize === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
+  val amoSrc1 = Mux(dataSizeReg === 4.U, io.R2Val(31,0), io.R2Val)
+  val amoSrc2 = Mux(dataSizeReg === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
   val amoWData = MuxLookup(io.fuOp, amoSrc2, 
     Array(
       LSU_ASWAP -> amoSrc1,
@@ -220,8 +222,8 @@ class MEM extends Module {
     )
   )
   io.mem2dmem.memAddr := translatedPAddr
-  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSize, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
-  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSize, accessVAddr))
+  io.mem2dmem.memWdata := DataTypesUtils.WDataGen(dataSizeReg, accessVAddr, Mux(isAMO && !isSC, amoWData, io.R2Val))
+  io.mem2dmem.memWmask := DataTypesUtils.Byte2BitMask(DataTypesUtils.ByteMaskGen(dataSizeReg, accessVAddr))
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)

@@ -39,6 +39,7 @@ class Top extends Module {
   ifu.io.exceptionRedir := csrFile.io.ifRedir
   ifu.io.pause := exu.io.pauseReq
   ifu.io.ifu2mmu <> immu.io.mem2mmu
+  ifu.io.intCtrl <> csrFile.io.intCtrl
 
   imem.io.rreq := ifu.io.ifu2dmem.memRreq | immu.io.dmemreq.memRreq
   imem.io.raddr := Mux(immu.io.dmemreq.memRreq, immu.io.dmemreq.memAddr, ifu.io.ifu2dmem.memAddr)

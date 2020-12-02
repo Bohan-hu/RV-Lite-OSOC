@@ -24,6 +24,7 @@ class IFUIO extends Bundle {
   val ifu2mmu = new MEM2MMU
   val ifu2dmem = new MEM2dmem
   val exceInfoOut = Output(new ExceptionInfo)
+  val intCtrl = Input(new INTCtrl)
 }
 
 /* TODOs:
@@ -147,8 +148,7 @@ class IFU extends Module {
                                     Mux(io.pause, io.inst_out.inst_pc ,thisPC)))
   io.inst_out.inst := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, 
                                     Mux(io.pause, io.inst_out.inst, thisInst)))
-  io.exceInfoOut := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), 
-                                    Mux(io.pause, io.exceInfoOut, thisExce)))
+
 
   // io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
   // io.inst_out.inst_pc := RegNext(Mux(io.pause, io.inst_out.inst_pc, Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisPC)))
@@ -158,7 +158,64 @@ class IFU extends Module {
   // io.inst_out.inst_pc := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisPC))
   // io.inst_out.inst := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U, thisInst))
   // io.exceInfoOut := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), thisExce))
-
+  val exceptionInfo = WireInit(thisExce)
+  val M = "b11".U
+  val S = "b01".U
+  val U = "b00".U
+  //   io.inst_out.instValid := RegNext(Mux(io.pause, io.inst_out.instValid, Mux(io.branchRedir.redir || io.exceptionRedir.redir, false.B, thisInstValid)))
+  // Handle Interrupts Here
+  // If the instruction did not throw any exception in IF, we can attach the interrupt on this instruction
+  // the interrupt is order by priority, highest last
+  // We need a cause int signal to show whether the corresponding int is enabled
+  def MipAndMie(no: Int) = io.intCtrl.mip(no) && io.intCtrl.mie(no)
+  def makeInt(no: Int) = (no.U | 1.U << 63)
+  val causeInt = Wire(Bool())
+  causeInt := false.B
+  val sIntEnable = (io.intCtrl.privMode === S && io.intCtrl.sie || io.intCtrl.privMode === M)
+  when(MipAndMie(IntNo.STI) & io.intCtrl.sie & sIntEnable) {
+    exceptionInfo.cause := makeInt(IntNo.STI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.SSI) & io.intCtrl.sie & sIntEnable) {
+    exceptionInfo.cause := makeInt(IntNo.SSI)
+    causeInt := true.B
+  }
+  /*
+  the platform-level interrupt controller may generate supervisor-level external interrupts.
+  Supervisor-level external interrupts are made pending based on the
+  logical-OR of the software- writable SEIP bit and the signal from the external interrupt controller
+    */
+  when((io.intCtrl.mip(IntNo.SEI)) && io.intCtrl.mie(IntNo.SEI)) {
+    exceptionInfo.cause := makeInt(IntNo.SEI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MTI)) {
+    exceptionInfo.cause := makeInt(IntNo.MTI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MSI)) {
+    exceptionInfo.cause := makeInt(IntNo.MSI)
+    causeInt := true.B
+  }
+  when(MipAndMie(IntNo.MEI)) {
+    exceptionInfo.cause := makeInt(IntNo.MEI)
+    causeInt := true.B
+  }
+  // Until here, the value of exceptionInfo.cause has been the cause with the highest priority
+  // If we are in M mode, the S INT is disabled (unless is delegated)
+  // If we are in S mode,
+  // If M mode interrupts are disabled and we are in S mode,
+  when(exceptionInfo.cause(63) & io.intCtrl.intGlobalEnable & causeInt) { // If is interrupt, we need to consider whether the interrupt can be taken
+    when(io.intCtrl.mideleg(exceptionInfo.cause(5, 0))){
+      when((io.intCtrl.sie && io.intCtrl.privMode === S) || io.intCtrl.privMode === U) { // If is delegated to S mode
+        exceptionInfo.valid := true.B
+      }
+    }.otherwise {
+      exceptionInfo.valid := true.B
+    }
+  }
+  io.exceInfoOut := RegNext(Mux(io.branchRedir.redir || io.exceptionRedir.redir, 0.U.asTypeOf(new ExceptionInfo), 
+                                    Mux(io.pause, io.exceInfoOut, exceptionInfo)))
 }
 
 object IFU extends App {
