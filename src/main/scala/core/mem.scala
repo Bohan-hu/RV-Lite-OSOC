@@ -298,6 +298,12 @@ class MEM extends Module {
     is(sWAIT_RD) {
       io.mem2dmem.memRreq := true.B
       io.pauseReq := true.B
+      when(io.mem2dmem.memAddr === 0x40600008L.U) {
+        io.pauseReq := false.B
+        state := sIDLE
+        io.memResult := 1.U
+        // printf("State Accessed!\n");
+      }
       when(io.mem2dmem.memRvalid & !(isAMO & ~isLR)) {
         io.pauseReq := false.B
         state := sIDLE
