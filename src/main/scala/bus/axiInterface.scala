@@ -104,7 +104,7 @@ class BridgeIO extends Bundle {
 class AXIBridge extends Module {
   val io = IO(new BridgeIO)
   val sIDLE :: sSEND_W_ADDR :: sSEND_R_ADDR :: sRECEIVE_DATA :: sSEND_DATA  :: sWAIT_WRESP :: sREAD_CLINT :: sWRITE_CLINT :: Nil = Enum(8)
-  val addr =  Mux(io.lsuPort.memRreq | io.lsuPort.memWen, io.lsuPort.memAddr, io.ifuPort.memAddr)
+  val addrReg = Reg(UInt(64.W))
   BoringUtils.addSource(io.ifuPort.memAddr, "instReqAddr")
   BoringUtils.addSource(io.ifuPort.memRreq, "instReq")
   BoringUtils.addSource(io.ifuPort.memRvalid, "instResp")
@@ -120,7 +120,7 @@ class AXIBridge extends Module {
   dontTouch(io.axiMaster.aruser)
   // AR
   io.axiMaster.arid := Mux(io.lsuPort.memRreq, 1.U, 0.U) // Data requst has higher priority than inst request, data rid = 1
-  io.axiMaster.araddr := addr 
+  io.axiMaster.araddr := addrReg 
   io.axiMaster.arlock := 0.U
   io.axiMaster.arcache := 0.U
   io.axiMaster.arprot := 0.U
@@ -129,7 +129,7 @@ class AXIBridge extends Module {
   io.axiMaster.arsize := Mux(io.lsuPort.memRreq, io.lsuPort.memSize, instReqArSz) 
   io.axiMaster.arvalid := false.B
   io.axiLiteMaster.arvalid := false.B // Initial value
-  io.axiLiteMaster.araddr := addr 
+  io.axiLiteMaster.araddr := addrReg 
   io.axiLiteMaster.arprot := 0.U
   io.axiLiteMaster.arvalid := false.B // Initial value
   io.axiMaster.arqos := 0.U
@@ -167,11 +167,10 @@ class AXIBridge extends Module {
   // B
   io.axiMaster.bready := true.B
   io.axiLiteMaster.bready := true.B
-  val isMMIO = MMIO.inMMIORange(addr)
+  val isMMIO = MMIO.inMMIORange(Mux(io.lsuPort.memRreq | io.lsuPort.memWen, io.lsuPort.memAddr, io.ifuPort.memAddr))
   // Data transfer should depend on the Mem Op
   val state = RegInit(sIDLE)
   // Regs to remeber address and id
-  val addrReg = Reg(UInt(64.W))
   val idReg = Reg(UInt(4.W))
   val isMMIOReg = Reg(Bool())
   // State Transfer Logic
@@ -187,7 +186,7 @@ class AXIBridge extends Module {
   io.toClint.addr := io.lsuPort.memAddr
   io.toClint.data := io.lsuPort.memWdata
   io.toClint.wen := false.B
-
+  dontTouch(addrReg)
   switch(state) {
     is(sIDLE) {
       when(io.lsuPort.memWen) {
@@ -198,7 +197,7 @@ class AXIBridge extends Module {
       }.elsewhen(io.ifuPort.memRreq | io.lsuPort.memRreq) {
         state := Mux(isClint & io.lsuPort.memRreq, sREAD_CLINT, sSEND_R_ADDR)
         idReg := io.axiMaster.arid
-        addrReg := addr
+        addrReg := Mux(io.lsuPort.memRreq === 1.U, io.lsuPort.memAddr, io.ifuPort.memAddr)
         isMMIOReg := isMMIO
       }
     }
