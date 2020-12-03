@@ -179,9 +179,10 @@ class MEM extends Module {
 
   val dataSizeReg = Reg(UInt(4.W))
   dataSizeReg := dataSize
+  val rDataReg = Reg(UInt(64.W))
   val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
   val dataFromMem = WireInit(io.mem2dmem.memRdata)
-  val memRdataRaw = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
+  val memRdataRaw = MuxLookup(dataSizeReg, rDataReg, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -189,7 +190,7 @@ class MEM extends Module {
       8.U -> dataFromMem
     )
   )
-  val memRdataRawExt = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
+  val memRdataRawExt = MuxLookup(dataSizeReg, rDataReg, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -219,7 +220,6 @@ class MEM extends Module {
   val canFireMemReq = ( isLoad | isStore | isLR | (isSC & scWillSuccess) | ( isAMO & ~isSC) ) & ~addrMisaligned
   io.mem2mmu.reqReady := false.B
   io.mem2mmu.reqVAddr := accessVAddr
-  val rDataReg = Reg(UInt(64.W))
   val amoSrc1 = Mux(dataSizeReg === 4.U, io.R2Val(31,0), io.R2Val)
   val amoSrc2 = Mux(dataSizeReg === 4.U, Mux(accessVAddr(2),rDataReg(63,32) ,rDataReg(31,0)), rDataReg)
   val amoWData = MuxLookup(io.fuOp, amoSrc2, 
