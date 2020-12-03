@@ -182,7 +182,7 @@ class MEM extends Module {
   val rDataReg = Reg(UInt(64.W))
   val signExt = io.MemType === SZ_B || io.MemType === SZ_H || io.MemType === SZ_W
   val dataFromMem = WireInit(io.mem2dmem.memRdata)
-  val memRdataRaw = MuxLookup(dataSizeReg, rDataReg, // Including Word Select
+  val memRdataRaw = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
@@ -190,12 +190,21 @@ class MEM extends Module {
       8.U -> dataFromMem
     )
   )
-  val memRdataRawExt = MuxLookup(dataSizeReg, rDataReg, // Including Word Select
+  val memRdataRawExt = MuxLookup(dataSizeReg, dataFromMem, // Including Word Select
     Array( // Byte, Addressed by addr[2:0]
       1.U -> dataFromMem.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
       2.U -> dataFromMem.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
       4.U -> dataFromMem.asTypeOf(DataTypesUtils.Words)(accessVAddr(2)),
       8.U -> dataFromMem
+    ).map( kw => { kw._1 -> signExt64(kw._2) }
+  )
+  )
+  val amoDataExt = MuxLookup(dataSizeReg, rDataReg, // Including Word Select
+    Array( // Byte, Addressed by addr[2:0]
+      1.U -> rDataReg.asTypeOf(DataTypesUtils.Bytes)(accessVAddr(2, 0)),
+      2.U -> rDataReg.asTypeOf(DataTypesUtils.HalfWords)(accessVAddr(2, 1)),
+      4.U -> rDataReg.asTypeOf(DataTypesUtils.Words)(accessVAddr(2)),
+      8.U -> rDataReg
     ).map( kw => { kw._1 -> signExt64(kw._2) }
   )
   )
@@ -241,12 +250,15 @@ class MEM extends Module {
   io.mem2dmem.memWen := false.B
   io.mem2dmem.memRreq := false.B
   io.memResult := Mux(signExt, memRdataRawExt, memRdataRaw)
-  val isMMIO = Mux(state === sIDLE, MMIO.inMMIORange(accessVAddr) ,MMIO.inMMIORange(io.mem2dmem.memAddr))   // Patch
+  when((isAMO & ~isLR)) {
+    io.memResult := amoDataExt
+  }
   when(isSC & scSuccessReg === 0.U) {
     io.memResult := 0.U
   }.elsewhen(isSC & scSuccessReg === 1.U) {
     io.memResult := 1.U
   }
+  val isMMIO = Mux(state === sIDLE, MMIO.inMMIORange(accessVAddr) ,MMIO.inMMIORange(io.mem2dmem.memAddr))   // Patch
 
   io.pauseReq := false.B
   val MemTypeReg = RegInit(SZ_B)
@@ -316,10 +328,10 @@ class MEM extends Module {
         }
     }
   }
-  val isUART = 0x40600000L.U <= io.mem2dmem.memAddr & (0x40600000L+10L).U >= io.mem2dmem.memAddr
-  when( isStore && isUART ) {
-   printf("%c", io.R2Val(7,0))
-  }
+  // val isUART = 0x40600000L.U <= io.mem2dmem.memAddr & (0x40600000L+10L).U >= io.mem2dmem.memAddr
+  // when( isStore && isUART ) {
+  //  printf("%c", io.R2Val(7,0))
+  // }
 
   // MMIO Flag
   BoringUtils.addSource(RegNext(RegNext(io.isMemOp & isMMIO)), "difftestIsMMIO")
