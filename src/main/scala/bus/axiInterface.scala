@@ -196,7 +196,7 @@ class AXIBridge extends Module {
         idReg := io.axiMaster.awid
         isMMIOReg := isMMIO
       }.elsewhen(io.ifuPort.memRreq | io.lsuPort.memRreq) {
-        state := Mux(isClint, sREAD_CLINT, sSEND_R_ADDR)
+        state := Mux(isClint & io.lsuPort.memRreq, sREAD_CLINT, sSEND_R_ADDR)
         idReg := io.axiMaster.arid
         addrReg := addr
         isMMIOReg := isMMIO

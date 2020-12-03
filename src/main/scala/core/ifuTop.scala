@@ -12,6 +12,7 @@ class IFUTopIO extends Bundle {
   val exceptionRedir = Input(new ExceptionRedir)
   val exceInfoOut = Output(new ExceptionInfo)
   val pause = Input(Bool())
+  val intCtrl = Input(new INTCtrl)
   // MMU
   val flush = Input(Bool())
   val csr2mmu = Flipped(new CSRMMU)
@@ -45,6 +46,7 @@ class IFUTop extends Module {
   ifu.io.ifu2dmem.memWrDone := false.B
   ifu.io.ifu2dmem.memRvalid := io.IFUMemReq.memRvalid
   ifu.io.ifu2dmem.memRdata  := io.IFUMemReq.memRdata
+  ifu.io.intCtrl := io.intCtrl
 }
 
 object IFUTop extends App {

@@ -79,7 +79,7 @@ object MMIO {
 
   def inMMIORange(Addr: UInt) = {
     MMIORange map ({
-      case (base, size) => Addr >= base.U && Addr <= (base + size).U
+      case (base, size) => Addr >= base.U && Addr < (base + size).U
     }) reduce {
       _ | _
     }
@@ -247,6 +247,7 @@ class MEM extends Module {
   }.elsewhen(isSC & scSuccessReg === 1.U) {
     io.memResult := 1.U
   }
+
   io.pauseReq := false.B
   val MemTypeReg = RegInit(SZ_B)
   switch(state) {
@@ -326,7 +327,7 @@ class MEM extends Module {
     // printf("Writing to &SATP: %x\n", io.R2Val)
   }
   // LSU 
-  // IDLE -> ReqPADDR -> OP -> IDLE
+    // IDLE -> ReqPADDR -> OP -> IDLE
   // If is SC and SC will fail, write back the failing code 
   // IDLE -> read_req -> transfer to WAIT_RD 
   // WAIT_RD -> rvalid -> transfer to IDLE  / isAMO -> transfer to WAIT_WR

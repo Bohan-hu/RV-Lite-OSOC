@@ -497,7 +497,8 @@ class CSRFile extends Module {
 
   val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
     CSRAddr.mstatus -> mstatus_write_mask,
-    CSRAddr.mip -> 0.U, // TODO: Patch: Unwritable
+    // CSRAddr.mip -> 0.U, // TODO: Patch: Unwritable
+    CSRAddr.mip -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.medeleg -> 0xbbff.U,

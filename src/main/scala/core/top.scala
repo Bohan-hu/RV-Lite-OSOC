@@ -34,6 +34,7 @@ class Top extends Module {
   ifuTop.io.pause := exu.io.pauseReq
   ifuTop.io.csr2mmu <> csrFile.io.csrMMU
   ifuTop.io.flush := false.B
+  ifuTop.io.intCtrl := csrFile.io.intCtrl
 
 
   // IFU <> DECODER
@@ -50,7 +51,6 @@ class Top extends Module {
   exu.io.flush := csrFile.io.ifRedir.redir
   exu.io.csr2mmu <> csrFile.io.csrMMU
   exu.io.commit2Exe := wb.io.commit2Exe
-
   // MEM <> WB / MEM <> dmem
   wb.io.instBundleIn := exu.io.instBundleOut
   wb.io.exe2Commit := exu.io.exe2Commit
