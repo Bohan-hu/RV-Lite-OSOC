@@ -18,7 +18,7 @@ class CLINT extends Module {
   val mtime = RegInit(0.U(64.W))
   val mtimecmp = RegInit(0.U(64.W))
   val msip = RegInit(0.U(64.W))
-  val clk = 100000
+  val clk = 10000
   val freq = RegInit(clk.U(20.W))
   val inc = RegInit(1.U(20.W))
 
