@@ -32,7 +32,7 @@ class AXI_ram extends BlackBox with HasBlackBoxInline {
         val reset    = Input(Bool())
         val clock    = Input(Bool())
         val arid     = Input(UInt(4.W))
-        val araddr   = Input(UInt(28.W))
+        val araddr   = Input(UInt(30.W))
         val arlen    = Input(UInt(8.W))
         val arsize   = Input(UInt(3.W))
         val arburst  = Input(UInt(2.W))
@@ -50,7 +50,7 @@ class AXI_ram extends BlackBox with HasBlackBoxInline {
         val rready   = Input(Bool())
 
         val awid     = Input(UInt(4.W))
-        val awaddr   = Input(UInt(28.W))
+        val awaddr   = Input(UInt(30.W))
         val awlen    = Input(UInt(8.W))
         val awsize   = Input(UInt(3.W))
         val awburst  = Input(UInt(2.W))
@@ -81,7 +81,7 @@ class AXI_ram extends BlackBox with HasBlackBoxInline {
     // Width of data bus in bits
     parameter DATA_WIDTH = 64,
     // Width of address bus in bits
-    parameter ADDR_WIDTH = 28,
+    parameter ADDR_WIDTH = 30,
     // Width of wstrb (width of data bus in words)
     parameter STRB_WIDTH = (DATA_WIDTH/8),
     // Width of ID signal
@@ -211,7 +211,7 @@ initial begin
     end
     // mem[0] = 32'h863; mem[1] = 32'h06400093; mem[2] = 32'h00000013; mem[3] = 32'h00000013; mem[4] = 32'h00102023; mem[5] = 32'h00002103;
     // mem[6] = 32'h00f00093; mem[7] = 32'h34101073; mem[8] = 32'h34109073; mem[9] = 32'h34186073; mem[10] = 32'h341020f3;
-    mem_file = $$fopen("/home/hubohan/ysyx/Sim_Workspace/img/kernel.bin", "r");
+    mem_file = $$fopen("/home/hubohan/ysyx/NutShell/ready-to-run/bblbusybox.bin", "r");
     $$fread(mem_rd, mem_file);
     for (i = 0; i < 2**VALID_ADDR_WIDTH; i = i + 2**(VALID_ADDR_WIDTH/2)) begin
         for (j = i; j < i + 2**(VALID_ADDR_WIDTH/2); j = j + 1) begin

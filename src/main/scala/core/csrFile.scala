@@ -600,9 +600,9 @@ class CSRFile extends Module {
   }
   // ================== Exception Handler Ends ===================
 
-  val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U & io.commitCSR.instValid
-  val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U & io.commitCSR.instValid
-  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011") & io.commitCSR.instValid
+  val isMret = io.commitCSR.inst === "b00110000001000000000000001110011".U & io.commitCSR.instValid & ~io.commitCSR.exceptionInfo.valid
+  val isSret = io.commitCSR.inst === "b00010000001000000000000001110011".U & io.commitCSR.instValid & ~io.commitCSR.exceptionInfo.valid
+  val isSFence = io.commitCSR.inst === BitPat("b0001001??????????000000001110011") & io.commitCSR.instValid & ~io.commitCSR.exceptionInfo.valid
   val isEret = isMret | isSret
   // ================== ERET Handler Begins ===================
   /*

@@ -110,14 +110,14 @@ class EXU extends Module {
   val dmmu = Module(new MMU(isDMMU = true))
   // io.mem2dmem <> mem.io.mem2dmem
   dmmu.io.mem2mmu <> mem.io.mem2mmu
-  dmmu.io.isStore := mem.io.MemOp === MEM_AMO || mem.io.MemOp === MEM_WRITE
+  dmmu.io.isStore := (mem.io.MemOp === MEM_AMO & mem.io.fuOp =/= LSU_LR) || mem.io.MemOp === MEM_WRITE
   dmmu.io.flush := io.flush
   dmmu.io.csr2mmu <> io.csr2mmu
 
   mem.io.instPC           := io.instBundleIn.inst_pc
   mem.io.MemType          := io.decode2Exe.MemType
   mem.io.fuOp             := io.decode2Exe.ALUOp
-  mem.io.isMemOp          := io.decode2Exe.isMemOp & io.instBundleIn.instValid
+  mem.io.isMemOp          := io.decode2Exe.isMemOp & io.instBundleIn.instValid & ~io.decode2Exe.exceInfo.valid
   mem.io.MemOp            := io.decode2Exe.MemOp
   mem.io.baseAddr         := op1
   mem.io.imm              := op2
