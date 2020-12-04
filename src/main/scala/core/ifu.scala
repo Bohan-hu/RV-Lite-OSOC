@@ -38,7 +38,7 @@ class IFU extends Module {
   val state = RegInit(sIDLE)
   val pendingRedirect = RegInit(false.B)
   val pendingRedirectAddr = RegInit(0.U(64.W))
-  val pc = RegInit(0x80000000L.U(64.W)-4.U)
+  val pc = RegInit(0x40000000L.U(64.W)-4.U)
   val thisInstValid = WireInit(false.B)
   val thisPC = WireInit(0.U)
   val thisInst = WireInit(0.U)

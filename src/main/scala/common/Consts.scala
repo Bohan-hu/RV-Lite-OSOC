@@ -2,8 +2,6 @@ package common {
 
   import chisel3._
 
-  // TODO: Use enum to replace the constants
-  // TODO: Use zip to replace the xx :: xx :: xx style assignment (Think of a list of signal)
   object OpConstants {
 
     //************************************

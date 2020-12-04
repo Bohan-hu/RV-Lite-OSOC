@@ -69,7 +69,6 @@ class Top extends Module {
   // io.instBundleOut := wb.io.instBundleOut
 
   // Consts
-  // TODO: TEST
   val clint = Module(new CLINT)
   csrFile.io.clintIn := clint.io.tocsr
   clint.io.memport <> axiBridge.io.toClint

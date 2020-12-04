@@ -48,9 +48,7 @@ class PTWIO extends Bundle {
   val mxr = Input(Bool())
   // DMem request
   val memReq = new NaiveBusM2S
-  // TODO: TLB Query
   val tlbQuery = Flipped(new TLBQuery)
-  // TODO: TLB Update
    val tlbUpdate = Output(new TLBEntry)
 
   // TODO: PMP Access Exception
@@ -187,7 +185,6 @@ class PTW(isDPTW: Boolean) extends Module {
               io.respValid := false.B
               stateReg := sERROR
             }
-            // TODO: Recover the condition
             when(!pteConverted.A ||
               (io.reqIsStore && !pteConverted.D)) { // pte.a = 0,
               // or if the memory access is a store and pte.d = 0
@@ -199,7 +196,6 @@ class PTW(isDPTW: Boolean) extends Module {
             Attempting to fetch an instruction from a page that does not have execute permissions
             raises a fetch page-fault exception
              */
-            // TODO: Recover the condition
             when(!pteConverted.X || !pteConverted.A) { // Instr, not eXecutable
             // when(!pteConverted.X) { // Instr, not eXecutable
               io.respValid := false.B

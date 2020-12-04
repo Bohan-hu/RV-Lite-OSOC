@@ -22,7 +22,6 @@ class MMUIO extends Bundle {
 
 class MMU (isDMMU: Boolean) extends Module {
   val io = IO(new MMUIO)
-  // TODO： Add TLB Here
   val tlb = Module(new TLB)
   val ptw = Module(new PTW(isDMMU))
   // PTW <> MMU

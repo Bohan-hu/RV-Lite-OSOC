@@ -54,7 +54,6 @@ class EXUIO extends Bundle {
 
 class EXU extends Module {
   val io = IO(new EXUIO)
-  // TODO: Deal with the bypass condition
   val op1 = io.decode2Exe.Op1
   val op2 = io.decode2Exe.Op2
   val rs2 = io.decode2Exe.R2val

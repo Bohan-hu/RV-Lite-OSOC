@@ -495,9 +495,8 @@ class CSRFile extends Module {
   }
   BoringUtils.addSource(mstatus & sstatus_read_mask.asUInt(), "difftestSstatus")
 
-  val WrMaskedCSR = Map( // TODO: Finish the CSR Mask
+  val WrMaskedCSR = Map(
     CSRAddr.mstatus -> mstatus_write_mask,
-    // CSRAddr.mip -> 0.U, // TODO: Patch: Unwritable
     CSRAddr.mideleg -> midelegMask, // SSIP, SEIP, STIP
     CSRAddr.mie -> ((1.U << 1) | (1.U << 3) | (1.U << 5) | (1.U << 7) | (1.U << 9) | (1.U << 11)),
     CSRAddr.mip -> "h77f".U,
