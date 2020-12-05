@@ -2,7 +2,6 @@ package core
 import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.experimental.BoringUtils
-import common.SyncReadWriteMem
 import mmu._
 import bus.AXIMaster
 import bus.AXIBridge
