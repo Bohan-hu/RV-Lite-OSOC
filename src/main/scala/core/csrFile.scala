@@ -338,10 +338,10 @@ class CSRFile extends Module {
 
   val accessCSRPriv = io.commitCSR.csrAddr(9, 8)
   //             IF the instruction is CSRRW / CSRRWI               else
-  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W && io.commitCSR.csrOp =/= CSR_I))
+  val csrRen = io.commitCSR.instValid && ((io.commitCSR.csrOp === CSR_W && io.commitCSR.instRd =/= 0.U) || (io.commitCSR.csrOp =/= CSR_X && io.commitCSR.csrOp =/= CSR_W && io.commitCSR.csrOp =/= CSR_I)) && ~io.commitCSR.exceptionInfo.valid
   val csrWen = io.commitCSR.instValid && !(io.commitCSR.csrOp === CSR_X || io.commitCSR.csrOp === CSR_I || 
     ((io.commitCSR.csrOp === CSR_S || io.commitCSR.csrOp === CSR_C) && io.commitCSR.instRs === 0.U) ||
-    ((io.commitCSR.csrOp === CSR_SI || io.commitCSR.csrOp === CSR_CI) && io.commitCSR.csrWData === 0.U))
+    ((io.commitCSR.csrOp === CSR_SI || io.commitCSR.csrOp === CSR_CI) && io.commitCSR.csrWData === 0.U)) && ~io.commitCSR.exceptionInfo.valid
 
 
   def maskedWrite(oldValue: UInt, writeValue: UInt, mask: UInt) = {
