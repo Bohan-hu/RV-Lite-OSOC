@@ -548,9 +548,9 @@ class CSRFile extends Module {
   // Handle the MIP & SIP Case
   val updateValMip = (Mux(isCsr_S | isCsr_C, csrRdata, 0.U) | io.commitCSR.csrWData) & (~Mux(isCsr_C, io.commitCSR.csrWData, 0.U)).asUInt()
   when( csrWen && io.commitCSR.csrAddr === CSRAddr.mip ) {
-    mip := maskedWrite(mip, updateValMip, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+    mip := maskedWrite(mip, updateValMip, WrMaskedCSR(CSRAddr.mip)) & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI | 1.U << IntNo.MEI ) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI) | (io.meip << IntNo.MEI))
   }.otherwise {
-    mip := mip & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI))
+    mip := mip & ~(1.U << IntNo.MSI | 1.U << IntNo.MTI | 1.U << IntNo.MEI) | ((io.clintIn.msip << IntNo.MSI) | (io.clintIn.mtip << IntNo.MTI) | (io.meip << IntNo.MEI) )
   }
   // Illegal Instruction
   val raiseIllegalInstructionException = writeIllegalCSR | readIllegalCSR
