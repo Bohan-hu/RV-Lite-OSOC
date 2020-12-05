@@ -76,8 +76,8 @@ class TLB extends Module{
         }
       }
     }
-    when(io.flush) {
-      tlbRegs(i).valid := false.B
+    when(io.flush | reset.asBool()) {
+      tlbRegs(i) := 0.U.asTypeOf(new TLBEntry)
     }
   }
 }

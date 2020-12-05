@@ -87,7 +87,7 @@ class AXI_ram extends BlackBox with HasBlackBoxInline {
     // Width of ID signal
     parameter ID_WIDTH = 4,
     // Extra pipeline register on output
-    parameter PIPELINE_OUTPUT = 0
+    parameter PIPELINE_OUTPUT = 1
 )
 (
     input  wire                   clock,

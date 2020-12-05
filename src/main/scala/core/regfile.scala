@@ -44,6 +44,10 @@ class Regfile extends Module {
   when(io.wrPort.wen & io.wrPort.waddr.orR) {
     Regs(io.wrPort.waddr) := io.wrPort.wdata
   }
+  when(reset.asBool()) {
+    for (i <- 0 until 8)
+        Regs(i) := 0.U
+  }
   BoringUtils.addSource(VecInit((0 to 31).map(i => Regs(i))), "difftestRegs")
 }
 
